@@ -55,7 +55,7 @@ p { margin: 0 0 1em; }
 }
 .nav a:hover { background: var(--violet-bg); color: var(--ink); }
 .nav a.active { background: var(--ink); color: #fff; }
-.nav-toggle { display: none; background: none; border: 0; font-size: 1.5rem; cursor: pointer; color: var(--ink); }
+.nav-toggle { display: none; background: none; border: 0; font-size: 1.5rem; cursor: pointer; color: var(--ink); width: 44px; height: 44px; margin-right: -10px; }
 
 @media (max-width: 900px) {
   .nav-toggle { display: block; }
@@ -64,7 +64,8 @@ p { margin: 0 0 1em; }
     flex-direction: column; padding: 12px 20px 20px;
     background: var(--bg); border-bottom: 1px solid var(--line);
   }
-  .nav.open { display: flex; }
+  .nav.open { display: flex; box-shadow: 0 12px 24px rgba(29,30,58,.08); }
+  .nav a { padding: 12px 14px; }
 }
 
 /* ---------- hero ---------- */

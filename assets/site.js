@@ -24,8 +24,18 @@ const PAGES = [
       </nav>
     </div>`;
   document.body.prepend(header);
-  header.querySelector(".nav-toggle").addEventListener("click", () => {
-    header.querySelector(".nav").classList.toggle("open");
+  const toggle = header.querySelector(".nav-toggle");
+  const nav = header.querySelector(".nav");
+  toggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = nav.classList.toggle("open");
+    toggle.textContent = open ? "✕" : "☰";
+  });
+  document.addEventListener("click", (e) => {
+    if (nav.classList.contains("open") && !nav.contains(e.target)) {
+      nav.classList.remove("open");
+      toggle.textContent = "☰";
+    }
   });
 
   const main = document.querySelector("main");
