@@ -2,10 +2,11 @@
 // Щоб додати нову сторінку — додай її в PAGES.
 const PAGES = [
   { href: "index.html", title: "Головна" },
+  { href: "model.html", title: "Модель" },
   { href: "rada.html", title: "Рада осередку" },
   { href: "kapitany.html", title: "Капітани" },
   { href: "departamenty.html", title: "Департаменти" },
-  { href: "studadmin.html", title: "Студадмін і чергові" },
+  { href: "studadmin.html", title: "Студадмін" },
 ];
 
 (function () {
