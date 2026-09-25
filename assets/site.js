@@ -4,6 +4,7 @@ const SECTIONS = [
   { title: "Головна", pages: [{ href: "index.html", title: "Головна" }] },
   { title: "Таймлайн року", pages: [{ href: "timeline.html", title: "Таймлайн року" }] },
   { title: "Стратегічні теми", pages: [{ href: "temy.html", title: "Стратегічні теми" }] },
+  { title: "«ГЕНОМ» Лідера", pages: [{ href: "genom.html", title: "«ГЕНОМ» Лідера" }] },
   {
     title: "Самоврядування",
     pages: [

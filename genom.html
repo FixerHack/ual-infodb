@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>«ГЕНОМ» Лідера · Документація УАЛ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Компетенції особистого лідерства</span>
+      <h1>«ГЕНОМ» <span>Лідера</span></h1>
+      <p class="lead">Сукупність проміжних функцій і процесів, що забезпечують цілеспрямований рух та ефективне функціонування системи, її опірність і постійний розвиток. Десять «генів» — від ухвалення рішень до практики лідерства.</p>
+    </section>
+
+    <section>
+      <div class="section-title"><span class="num">01</span><h2>Мапа генів</h2></div>
+      <div class="genome-map" id="genome-map"></div>
+    </section>
+
+    <div id="genes"></div>
+  </div>
+</main>
+
+<script>
+// Дані «геному». group задає колір, detail — унікальний вміст гена.
+const GENES = [
+  {
+    code: "D", sub: "", g: "d", en: "Decision Making", key: "цінності",
+    desc: "створення рішень на основі цінностей",
+    detail: `
+      <div class="flow-row"><span class="pill">Ціль</span><span class="flow-arr">→</span><span class="pill accent">Цінність</span><span class="flow-arr">→</span><span class="pill">Результат</span></div>
+      <ol class="steps">
+        <li>Визначення конкретних цілей</li>
+        <li>Перегляд можливих альтернатив</li>
+        <li>Екстраінформація щодо альтернатив</li>
+        <li>Розгляд наслідків (відповідність цінностям)</li>
+        <li>Екстраінформація щодо наслідків</li>
+        <li>Дій!</li>
+      </ol>`,
+  },
+  {
+    code: "G", sub: "1", g: "g", en: "Goal setting · Results seeking", key: "планування",
+    desc: "формування цілей для досягнення результатів",
+    detail: `
+      <p class="detail-note">Ціль за критеріями <b>SMART</b>:</p>
+      <div class="pairs">
+        <div class="pair"><b>Конкретна</b><span>хто? що? де? як? скільки?</span></div>
+        <div class="pair"><b>Вимірювана</b><span>від… до…</span></div>
+        <div class="pair"><b>Обмежена</b><span>термін / реченець</span></div>
+        <div class="pair"><b>Вартісна</b><span>результативна</span></div>
+        <div class="pair"><b>Досяжна</b><span>реалістична</span></div>
+      </div>`,
+  },
+  {
+    code: "G", sub: "2", g: "g", en: "Sustainable Growth", key: "тіло · почуття · інтелект",
+    desc: "сталий розвиток та активне навчання протягом життя",
+    detail: `
+      <div class="callout soft"><b>Індивідуальний план розвитку + Регулярність</b></div>
+      <div class="cycle"><span class="pill accent">Тіло</span><span class="flow-arr">→</span><span class="pill accent">Почуття</span><span class="flow-arr">→</span><span class="pill accent">Інтелект</span><span class="flow-arr">↻</span></div>`,
+  },
+  {
+    code: "R", sub: "", g: "r", en: "Reflection", key: "рефлексія / аналіз досвіду",
+    desc: "досягнення · недоліки · покращення",
+    detail: `
+      <p>Один із базових механізмів аналізу, що сприяє внутрішньому розвитку особистості, глибшому самоусвідомленню, допомагає ефективно використовувати особисті ресурси та надає життю глибину і якість.</p>
+      <div class="formula">R = (√S<sub>(+)</sub> + √F<sub>(−)</sub>) / G</div>
+      <p class="detail-note">S — Success, F — Fault, G — Growth</p>
+      <p class="detail-note"><b>Види рефлексії (VPALT):</b></p>
+      <div class="pairs">
+        <div class="pair"><b>Ціннісна</b><span>створення рішень на основі цінностей</span></div>
+        <div class="pair"><b>Особистісна</b><span>фізичний, емоційний та інтелектуальний розвиток</span></div>
+        <div class="pair"><b>Академічна</b><span>аналіз навчального процесу</span></div>
+        <div class="pair"><b>Базовий алгоритм лідерства</b><span>аналіз застосування</span></div>
+        <div class="pair"><b>Текстуальна</b><span>аналіз прочитаних текстів</span></div>
+      </div>
+      <p class="callout">Досвід змінює не лише нас, а й те, як ми бачимо.</p>`,
+  },
+  {
+    code: "H", sub: "", g: "r", en: "Life Hermeneutics", key: "зміст + смак = сенс",
+    desc: "робота з сенсами — в текстах і життєвих подіях",
+    detail: `
+      <div class="formula">S = M + T</div>
+      <p class="detail-note">S — sense (сенс), M — meaning (зміст), T — taste (смак)</p>`,
+  },
+  {
+    code: "E", sub: "1", g: "e", en: "Example setting", key: "приклад",
+    desc: "менеджмент команд — вести власним прикладом",
+    detail: `
+      <div class="callout soft"><b>DUCTUS EXEMPLO</b> — вести прикладом</div>
+      <div class="quad">
+        <span class="pill">Підсилювати інших</span>
+        <span class="pill">Брати на себе відповідальність за зміни</span>
+        <span class="pill">Ділитись візією</span>
+        <span class="pill">Надихати команду</span>
+      </div>`,
+  },
+  {
+    code: "E", sub: "2", g: "e", en: "Empowerment", key: "довіра · повноваження",
+    desc: "менеджмент людей — підсилення особистості довірою і повноваженнями",
+    detail: `
+      <div class="formula">T + S = Довіра + Повноваження</div>
+      <p class="detail-note">T — Trust (довіра), S — Support (підтримка)</p>`,
+  },
+  {
+    code: "C", sub: "1", g: "c", en: "Capital accumulation", key: "робота з капіталом",
+    desc: "накопичення та примноження капіталу",
+    detail: `
+      <div class="callout soft"><b>VENTURE CAPITAL:</b> K = P₁ − P₂ − P₃ <span class="muted-inline">(ресурс / результат / розвиток)</span></div>
+      <p class="detail-note"><b>Види капіталу:</b></p>
+      <div class="chips">
+        <span class="chip">Інтелектуальний</span>
+        <span class="chip">Соціальний</span>
+        <span class="chip">Фінансовий</span>
+        <span class="chip">Духовний</span>
+        <span class="chip">Мотиваційний</span>
+        <span class="chip">Матеріальний</span>
+      </div>`,
+  },
+  {
+    code: "C", sub: "2", g: "c", en: "Communicative Logic", key: "консенсус",
+    desc: "комунікація для порозуміння",
+    detail: `
+      <div class="callout"><b>Консенсус ≠ компроміс</b></div>
+      <ol class="steps">
+        <li>Пропозиція рішення</li>
+        <li>Консенсус знайдено? — <b>Так</b> → програма дій</li>
+        <li>Якщо <b>ні</b> — заперечення висловлено, зміна пропозиції або утриматися</li>
+        <li>Якщо заперечення лишається — рішення заблоковано</li>
+      </ol>`,
+  },
+  {
+    code: "L", sub: "", g: "l", en: "Leadership in practice", key: "базовий алгоритм лідерства",
+    desc: "практичне застосування базового алгоритму лідерства",
+    detail: `
+      <p class="detail-note">мета · ресурс · механізми · комунікація · результат · аналіз · цілі</p>
+      <ol class="steps">
+        <li>Сформулюй мету</li>
+        <li>Оціни ресурси</li>
+        <li>Визнач методологію</li>
+        <li>Вмотивуй команду</li>
+        <li>Досягни результату</li>
+        <li>Проаналізуй проведені дії</li>
+        <li>Сформулюй цілі для покращення результату</li>
+      </ol>`,
+  },
+];
+
+const id = (gene) => "gene-" + gene.code.toLowerCase() + (gene.sub || "");
+const label = (gene) => gene.code + (gene.sub ? `<sub>${gene.sub}</sub>` : "");
+
+document.getElementById("genome-map").innerHTML = GENES.map((gene) => `
+  <a class="gene-chip ${gene.g}" href="#${id(gene)}">
+    <span class="gene-code">${label(gene)}</span>
+    <span class="gene-en">${gene.en}</span>
+    <span class="gene-key">${gene.key}</span>
+  </a>`).join("");
+
+document.getElementById("genes").innerHTML = GENES.map((gene) => `
+  <section class="gene ${gene.g}" id="${id(gene)}">
+    <div class="gene-head">
+      <span class="gene-badge">${label(gene)}</span>
+      <div>
+        <h2>${gene.en}</h2>
+        <div class="gene-desc">${gene.desc}</div>
+      </div>
+    </div>
+    <div class="gene-body card">${gene.detail}</div>
+  </section>`).join("");
+</script>
+<script src="assets/site.js"></script>
+</body>
+</html>

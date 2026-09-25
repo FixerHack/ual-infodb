@@ -340,3 +340,55 @@ ol.steps li::before {
 .theme-block-label { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; opacity: .8; }
 .theme-block-event { font-size: .95rem; }
 .theme-block-event a { color: var(--lime); font-weight: 600; }
+
+/* ---------- «ГЕНОМ» Лідера ---------- */
+:root {
+  --g-d: #d8a24a; --g-g: #bcd23a; --g-r: #8bbf4e; --g-e: #a89f5c; --g-c: #93a9c9; --g-l: #9b93ac;
+}
+.d { --gc: var(--g-d); } .g { --gc: var(--g-g); } .r { --gc: var(--g-r); }
+.e { --gc: var(--g-e); } .c { --gc: var(--g-c); } .l { --gc: var(--g-l); }
+
+.genome-hub .arrow { color: var(--g-r); }
+.genome-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.gene-chip {
+  display: flex; flex-direction: column; gap: 4px; text-decoration: none;
+  background: var(--card); border: 1px solid var(--line); border-left: 6px solid var(--gc);
+  border-radius: 14px; padding: 14px 16px; transition: transform .15s, box-shadow .15s;
+}
+.gene-chip:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.gene-code { font-family: "Unbounded", sans-serif; font-weight: 700; font-size: 1.5rem; color: var(--gc); line-height: 1; }
+.gene-code sub { font-size: .6em; }
+.gene-en { font-weight: 600; font-size: .92rem; }
+.gene-key { font-size: .8rem; color: var(--muted); }
+
+.gene { scroll-margin-top: 80px; margin-top: 8px; }
+.gene-head { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+.gene-badge {
+  flex: none; width: 66px; height: 66px; border-radius: 18px; background: var(--gc); color: #fff;
+  display: grid; place-items: center; font-family: "Unbounded", sans-serif; font-weight: 700; font-size: 1.9rem;
+}
+.gene-badge sub { font-size: .55em; }
+.gene-head h2 { margin: 0; font-size: 1.3rem; }
+.gene-desc { color: var(--muted); font-size: .95rem; }
+.gene-body { border-top: 4px solid var(--gc); }
+.gene-body .accent, .gene .pill.accent { background: var(--gc); color: #fff; }
+.gene .steps li::before { background: var(--gc); color: #fff; }
+.gene .callout { background: color-mix(in srgb, var(--gc) 22%, #fff); }
+
+.detail-note { color: var(--muted); font-size: .92rem; margin: 14px 0 8px; }
+.muted-inline { color: var(--muted); font-weight: 400; font-size: .85em; }
+.flow-row, .cycle, .quad { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.pill { display: inline-block; background: var(--violet-bg); border-radius: 999px; padding: 8px 16px; font-weight: 600; font-size: .92rem; }
+.flow-arr { color: var(--gc, var(--violet)); font-weight: 700; font-size: 1.1rem; }
+.pairs { display: grid; gap: 8px; }
+.pair { display: grid; grid-template-columns: minmax(120px, 260px) 1fr; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.pair b { color: var(--ink); }
+.pair span { color: var(--muted); font-size: .95rem; }
+.formula {
+  display: inline-block; font-family: "Unbounded", sans-serif; font-size: 1.3rem; font-weight: 600;
+  background: var(--violet-bg); border-radius: 12px; padding: 12px 22px; margin: 6px 0;
+}
+.quad .pill { flex: 1; min-width: 160px; text-align: center; }
+@media (max-width: 600px) {
+  .pair { grid-template-columns: 1fr; gap: 2px; }
+}
