@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Таймлайн року · Документація УАЛ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Навчальний рік</span>
+      <h1>Таймлайн <span>року</span></h1>
+      <p class="lead">Десять місяців, чотири модулі. Кожен модуль має свій колір, як таблички на стіні осередку. Дати орієнтовні (≈) і можуть зсуватися.</p>
+    </section>
+
+    <section>
+      <div class="year-bar" id="year-bar"></div>
+      <div class="module-legend" id="module-legend"></div>
+    </section>
+
+    <section>
+      <div class="section-title"><span class="num">★</span><h2>Вишколи року</h2></div>
+      <div class="vyshkoly" id="vyshkoly"></div>
+    </section>
+
+    <div id="modules"></div>
+  </div>
+</main>
+
+<script>
+// Дані таймлайну. Щоб додати подію — допиши її в events потрібного місяця.
+// kind: expedition | vyshkil | forum | holiday | event
+const MODULES = [
+  {
+    n: 1, name: "Становлення", cls: "m1",
+    months: [
+      { m: "Вересень", events: [], cadence: "Кінець вересня — старт I каденції самоврядування · вибори «Україна 1991»" },
+      { m: "Жовтень", events: [
+        { t: "Регіональна експедиція", d: "≈ початок жовтня", kind: "expedition" },
+        { t: "Вишкіл «Становлення»", d: "жовтень", kind: "vyshkil" },
+        { t: "Регіональне відкриття", d: "≈ жовтень", note: "серія форумів «Творимо себе — творимо Україну»", kind: "forum" },
+        { t: "Осінні канікули", d: "≈ кінець жовтня", kind: "holiday" },
+      ] },
+    ],
+  },
+  {
+    n: 2, name: "Воїн", cls: "m2",
+    months: [
+      { m: "Листопад", events: [
+        { t: "Вишкіл «Воїн»", d: "листопад", kind: "vyshkil" },
+        { t: "Міжрегіональна експедиція", d: "≈ середина листопада", kind: "expedition" },
+      ], cadence: "Кінець листопада — старт II каденції · вибори «Україна 2004»" },
+      { m: "Грудень", events: [
+        { t: "Форум «Софія Київська»", d: "грудень", kind: "forum" },
+        { t: "Вертеп", d: "≈ середина грудня – початок січня", note: "традиційний і сучасний", kind: "event" },
+        { t: "Зимові канікули", d: "≈ кінець грудня – початок січня", kind: "holiday" },
+      ] },
+    ],
+  },
+  {
+    n: 3, name: "Дослідник", cls: "m3",
+    months: [
+      { m: "Січень", events: [] },
+      { m: "Лютий", events: [
+        { t: "Обмін осередками", d: "лютий", kind: "event" },
+      ], cadence: "Кінець лютого — старт III каденції · вибори «Україна 2030»" },
+      { m: "Березень", events: [
+        { t: "Вишкіл «Дослідник»", d: "березень", kind: "vyshkil" },
+        { t: "Стажування", d: "друге півріччя", kind: "event" },
+        { t: "Весняні канікули", d: "≈ кінець березня", kind: "holiday" },
+      ] },
+    ],
+  },
+  {
+    n: 4, name: "Мандрівник", cls: "m4",
+    months: [
+      { m: "Квітень", events: [
+        { t: "Експедиція ЄС", d: "≈ кінець квітня – початок травня", kind: "expedition" },
+        { t: "Великодні вихідні", d: "на Великдень", kind: "holiday" },
+      ] },
+      { m: "Травень", events: [
+        { t: "Вишкіл «Мандрівник»", d: "травень", kind: "vyshkil" },
+        { t: "Півмарафон", d: "травень", kind: "event" },
+        { t: "Кубок Академії", d: "≈ кінець травня", kind: "event" },
+      ] },
+      { m: "Червень", events: [
+        { t: "Фінальна мандрівка", d: "≈ початок червня", kind: "expedition" },
+        { t: "Церемонія завершення року", d: "червень", kind: "event" },
+      ] },
+    ],
+  },
+];
+
+const KIND = {
+  expedition: "Експедиція",
+  vyshkil: "Вишкіл",
+  forum: "Форум",
+  holiday: "Відпочинок",
+  event: "Подія",
+};
+
+const slug = (s) => s.toLowerCase().replace(/[^a-zа-яіїєґ0-9]+/gi, "-");
+const tag = (e, mod) => `
+  <div class="tag-card ${mod.cls}${e.kind === "holiday" ? " soft" : ""}">
+    <div class="tag-card-top"><span class="mini-logo">A</span><span class="tag-kind">${KIND[e.kind]}</span></div>
+    <div class="tag-card-title">${e.t}</div>
+    <div class="tag-card-date">${e.d}</div>
+    ${e.note ? `<div class="tag-card-note">${e.note}</div>` : ""}
+    <div class="tag-card-foot">Модуль ${mod.n} · ${mod.name}</div>
+  </div>`;
+
+// Смуга року
+document.getElementById("year-bar").innerHTML = MODULES.flatMap((mod) =>
+  mod.months.map((mo) => `<a class="yb-cell ${mod.cls}" href="#${slug(mo.m)}"><span>${mo.m.slice(0, 3)}</span></a>`)
+).join("");
+document.getElementById("module-legend").innerHTML = MODULES.map((mod) =>
+  `<a class="ml-item" href="#module-${mod.n}"><span class="ml-dot ${mod.cls}"></span>Модуль ${mod.n} · ${mod.name}</a>`
+).join("");
+
+// Вишколи
+document.getElementById("vyshkoly").innerHTML = MODULES.map((mod) => {
+  const v = mod.months.flatMap((mo) => mo.events).find((e) => e.kind === "vyshkil");
+  return v ? tag(v, mod) : "";
+}).join("");
+
+// Модулі та місяці
+document.getElementById("modules").innerHTML = MODULES.map((mod) => `
+  <section class="module ${mod.cls}" id="module-${mod.n}">
+    <div class="module-head ${mod.cls}">
+      <span class="module-num">Модуль ${mod.n}</span>
+      <h2>${mod.name}</h2>
+      <span class="module-months">${mod.months.map((m) => m.m).join(" · ")}</span>
+    </div>
+    ${mod.months.map((mo) => `
+      <div class="month" id="${slug(mo.m)}">
+        <div class="month-name">${mo.m}</div>
+        <div class="month-body">
+          ${mo.events.length ? `<div class="month-events">${mo.events.map((e) => tag(e, mod)).join("")}</div>`
+            : `<div class="month-empty">Звичайний ритм програми осередку</div>`}
+          ${mo.cadence ? `<div class="cadence-mark">🗳️ ${mo.cadence}</div>` : ""}
+        </div>
+      </div>`).join("")}
+  </section>`).join("");
+</script>
+<script src="assets/site.js"></script>
+</body>
+</html>

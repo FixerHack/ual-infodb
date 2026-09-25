@@ -224,3 +224,87 @@ ol.steps li::before {
   .pyr-level { width: 100%; }
   .pyr-cell small { display: block; }
 }
+
+/* ---------- module colors (як таблички) ---------- */
+:root { --m1: #f7aa3a; --m2: #f6a898; --m3: #f1ea52; --m4: #c6ea4e; }
+.m1 { --mc: var(--m1); } .m2 { --mc: var(--m2); } .m3 { --mc: var(--m3); } .m4 { --mc: var(--m4); }
+
+/* ---------- subnav ---------- */
+.subnav { border-bottom: 1px solid var(--line); background: var(--card); }
+.subnav .wrap { position: relative; display: flex; gap: 6px; align-items: center; overflow-x: auto; padding-top: 10px; padding-bottom: 10px; scrollbar-width: none; }
+.subnav .wrap::-webkit-scrollbar { display: none; }
+.subnav-title { font-family: "Unbounded", sans-serif; font-size: .78rem; font-weight: 600; color: var(--violet); margin-right: 8px; white-space: nowrap; }
+.subnav a { white-space: nowrap; text-decoration: none; font-size: .85rem; font-weight: 500; color: var(--muted); padding: 6px 12px; border-radius: 999px; }
+.subnav a:hover { background: var(--violet-bg); color: var(--ink); }
+.subnav a.active { background: var(--violet); color: #fff; }
+
+/* ---------- hub ---------- */
+.hub-bar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin: 6px 0 8px; }
+.hub-bar span { height: 14px; border-radius: 4px; background: var(--mc); }
+.now-card {
+  display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 10px;
+  background: var(--mc); border: 2px solid var(--ink); border-radius: 14px; padding: 12px 18px;
+}
+.now-card span { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.now-card b { font-family: "Unbounded", sans-serif; }
+.now-card a { font-weight: 600; }
+
+/* ---------- year bar ---------- */
+.year-bar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+.yb-cell {
+  background: var(--mc); border-radius: 10px; padding: 14px 4px; text-align: center; text-decoration: none;
+  font-family: "Unbounded", sans-serif; font-weight: 600; font-size: .8rem; text-transform: uppercase;
+  transition: transform .15s;
+}
+.yb-cell:hover { transform: translateY(-3px); }
+.module-legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 14px; }
+.ml-item { display: inline-flex; align-items: center; gap: 8px; font-size: .9rem; font-weight: 500; text-decoration: none; }
+.ml-dot { width: 14px; height: 14px; border-radius: 4px; background: var(--mc); border: 1.5px solid var(--ink); }
+@media (max-width: 600px) {
+  .year-bar { grid-template-columns: repeat(5, 1fr); }
+}
+
+/* ---------- tag cards (паперові таблички) ---------- */
+.tag-card {
+  position: relative; background: var(--mc); border-radius: 6px; padding: 16px 18px 12px;
+  display: flex; flex-direction: column; gap: 4px; min-height: 150px;
+  box-shadow: 0 2px 0 rgba(29,30,58,.08), 0 8px 18px rgba(29,30,58,.08);
+}
+.tag-card::before { content: ""; position: absolute; inset: 7px; border: 2px solid var(--ink); border-radius: 10px; pointer-events: none; }
+.tag-card.soft { background: color-mix(in srgb, var(--mc) 55%, #fff); }
+.tag-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.mini-logo {
+  width: 18px; height: 20px; display: grid; place-items: center; font-size: .6rem; font-weight: 700;
+  border: 1.5px solid var(--ink); clip-path: polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%); padding-bottom: 3px;
+}
+.tag-kind { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; background: rgba(29,30,58,.1); padding: 2px 8px; border-radius: 999px; }
+.tag-card-title { font-family: "Unbounded", sans-serif; font-weight: 700; font-size: 1rem; text-transform: uppercase; text-align: center; line-height: 1.25; margin-top: auto; }
+.tag-card-date { text-align: center; font-size: .9rem; }
+.tag-card-note { text-align: center; font-size: .78rem; opacity: .8; }
+.tag-card-foot { text-align: center; font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-top: auto; padding-top: 10px; }
+
+.vyshkoly { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+
+/* ---------- modules & months ---------- */
+.module { scroll-margin-top: 80px; }
+.module-head {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 16px;
+  background: var(--mc); border: 2px solid var(--ink); border-radius: 16px; padding: 18px 22px; margin-bottom: 18px;
+}
+.module-head h2 { margin: 0; text-transform: uppercase; }
+.module-num { font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; }
+.module-months { margin-left: auto; font-size: .9rem; font-weight: 500; }
+.month { display: grid; grid-template-columns: 200px 1fr; gap: 18px; padding: 16px 0; border-bottom: 1px dashed var(--line); scroll-margin-top: 80px; }
+.month:last-child { border-bottom: 0; }
+.month-name { font-family: "Unbounded", sans-serif; font-weight: 700; font-size: 1.5rem; text-transform: uppercase; position: relative; padding-left: 18px; }
+.month-name::before { content: ""; position: absolute; left: 0; top: .35em; bottom: .35em; width: 6px; border-radius: 3px; background: var(--mc); }
+.month-events { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+.month-empty { color: var(--muted); font-size: .95rem; padding: 10px 0; }
+.cadence-mark {
+  margin-top: 12px; display: inline-block; background: var(--violet-bg); color: var(--ink);
+  border-left: 4px solid var(--violet); border-radius: 8px; padding: 8px 14px; font-size: .9rem; font-weight: 500;
+}
+@media (max-width: 700px) {
+  .month { grid-template-columns: 1fr; gap: 10px; }
+  .module-months { margin-left: 0; }
+}
