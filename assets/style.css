@@ -392,3 +392,10 @@ ol.steps li::before {
 @media (max-width: 600px) {
   .pair { grid-template-columns: 1fr; gap: 2px; }
 }
+
+/* fix: індекс біля літери гена (C₁, G₂ …) — тримаємо в межах плашки */
+.gene-badge, .gene-code { display: inline-flex; align-items: baseline; justify-content: center; }
+.gene-badge sub, .gene-code sub {
+  vertical-align: baseline; font-size: .48em; line-height: 1;
+  margin-left: 1px; align-self: baseline; position: relative; top: .06em;
+}
