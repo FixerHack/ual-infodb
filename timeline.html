@@ -123,9 +123,12 @@ const MONTH_NUM = { Січень: 1, Лютий: 2, Березень: 3, Кві�
 const bdayStrip = (monthName) => {
   const list = (BIRTHDAYS[MONTH_NUM[monthName]] || []).slice().sort((a, b) => a[0] - b[0]);
   if (!list.length) return "";
-  return `<div class="month-bdays"><span class="mb-label">🎂 Дні народження</span>${list
-    .map(([d, n]) => `<a class="mb-item" href="dni-narodzhennia.html"><b>${d}</b> ${n}</a>`)
-    .join("")}</div>`;
+  return `<div class="month-bdays">
+    <div class="mb-head">🎂 Дні народження</div>
+    <div class="mb-list">${list
+      .map(([d, n]) => `<a class="mb-item" href="dni-narodzhennia.html"><span class="mb-day">${d}</span>${n}</a>`)
+      .join("")}</div>
+  </div>`;
 };
 
 const slug = (s) => s.toLowerCase().replace(/[^a-zа-яіїєґ0-9]+/gi, "-");

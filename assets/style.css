@@ -440,11 +440,13 @@ ol.steps li::before {
 .bday-row.today .bday-person { font-weight: 700; }
 
 /* дні народження в таймлайні */
-.month-bdays { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.mb-label { font-size: .82rem; font-weight: 600; color: var(--muted); margin-right: 2px; }
+.month-bdays { margin-top: 16px; background: var(--violet-bg); border-radius: 14px; padding: 14px 16px; }
+.mb-head { font-size: .78rem; font-weight: 600; color: var(--violet); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+.mb-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .mb-item {
-  text-decoration: none; font-size: .86rem; background: var(--card); border: 1px solid var(--line);
-  border-radius: 999px; padding: 5px 12px; transition: border-color .15s, color .15s;
+  display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink);
+  font-size: .88rem; font-weight: 500; background: var(--card); border: 1px solid transparent;
+  border-radius: 999px; padding: 4px 14px 4px 4px; transition: border-color .15s, transform .12s;
 }
-.mb-item b { color: var(--violet); }
-.mb-item:hover { border-color: var(--violet); color: var(--violet); }
+.mb-item:hover { border-color: var(--violet); transform: translateY(-1px); }
+.mb-day { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--violet); color: #fff; display: grid; place-items: center; font-size: .78rem; font-weight: 700; }
