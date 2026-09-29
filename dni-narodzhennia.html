@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Дні народження · Документація УАЛ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<canvas id="confetti"></canvas>
+<main>
+  <div class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Осередок Львів</span>
+      <h1>Дні <span>народження</span></h1>
+      <p class="lead">Щоб нікого не забути привітати. Сьогодні <b id="today-date"></b>.</p>
+    </section>
+
+    <section id="today-section" hidden>
+      <div class="bday-hero" id="bday-hero"></div>
+    </section>
+
+    <section>
+      <div class="section-title"><span class="num">🎈</span><h2>Найближчі дні народження</h2></div>
+      <div class="upcoming" id="upcoming"></div>
+    </section>
+
+    <section>
+      <div class="section-title"><span class="num">📅</span><h2>Календар по місяцях</h2></div>
+      <div class="months-grid" id="months-grid"></div>
+    </section>
+
+    <section id="nodate-section" hidden>
+      <div class="section-title"><span class="num">＋</span><h2>Дата ще не вказана</h2></div>
+      <div class="chips" id="nodate"></div>
+      <p class="detail-note">Додайте дати цих студентів у файл — і вони з'являться в календарі.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+// Дані днів народження. m — місяць (1–12), d — день. Щоб додати/змінити — редагуй тут.
+const PEOPLE = [
+  { n: "Білик Анастасія Владиславівна", m: 10, d: 11 },
+  { n: "Габрикевич Ангеліна Іванівна", m: 1, d: 2 },
+  { n: "Терехова Юлія Сергіївна", m: 1, d: 9 },
+  { n: "Кожухалова Анна Олексіївна", m: 1, d: 18 },
+  { n: "Мельникович Ярослав Дмитрович", m: 1, d: 21 },
+  { n: "Обідченко Ярослав Сергійович", m: 1, d: 21 },
+  { n: "Чорна Ярослава Олексіївна", m: 1, d: 29 },
+  { n: "Вусик Євгенія Віталіївна", m: 2, d: 15 },
+  { n: "Єфремова Христина Ярославівна", m: 2, d: 18 },
+  { n: "Могилевська Вікторія Русланівна", m: 2, d: 8 },
+  { n: "Кришень Олександра Євгенівна", m: 3, d: 3 },
+  { n: "Петров Анна Романівна", m: 3, d: 3 },
+  { n: "Мельник Аріна Іванівна", m: 3, d: 30 },
+  { n: "Ревенко Володимир Володимирович", m: 4, d: 7 },
+  { n: "Христик Анастасія Олександрівна", m: 4, d: 28 },
+  { n: "Колісник Максим Ігорович", m: 4, d: 30 },
+  { n: "Квик Христина Іванівна", m: 5, d: 29 },
+  { n: "Ткаченко Марія Валентинівна", m: 6, d: 2 },
+  { n: "Печура Дана Володимирівна", m: 6, d: 30 },
+  { n: "Буняк Вікторія Володимирівна", m: 7, d: 23 },
+  { n: "Мазур Ольга Володимирівна", m: 7, d: 24 },
+  { n: "Ящук Анастасія Олександрівна", m: 7, d: 27 },
+  { n: "Пачковська Юлія Андріївна", m: 8, d: 20 },
+  { n: "Лазарук Євдокія Мар'янівна", m: 8, d: 23 },
+  { n: "Урсу Дмитро Володимирович", m: 8, d: 30 },
+  { n: "Музичук Сергій Васильович", m: 9, d: 29 },
+  { n: "Смирнова Таісія Владіславівна", m: 10, d: 3 },
+  { n: "Федоренко Євгенія Олександрівна", m: 10, d: 8 },
+  { n: "Тішенкова Софія Дмитрівна", m: 10, d: 27 },
+  { n: "Шевченко Владислава Сергіївна", m: 11, d: 3 },
+  { n: "Шило Кіра Володимирівна", m: 11, d: 25 },
+  { n: "Попова Дарія Миколаївна", m: 12, d: 11 },
+];
+const NO_DATE = [
+  "Будзан Олександр Олегович",
+  "Карнаух Марк Олегович",
+  "Леончук Варвара Віталіївна",
+  "Огірчак Олексій Романович",
+  "Соловова Єва Сергіївна",
+  "Чубай Ілля Олександрович",
+];
+
+const MONTHS = ["", "січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
+const MONTH_NAME = ["", "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
+const first = (n) => n.split(" ").slice(0, 2).reverse().join(" "); // Ім'я Прізвище
+
+const today = new Date();
+const tM = today.getMonth() + 1, tD = today.getDate();
+document.getElementById("today-date").textContent = `${tD} ${MONTHS[tM]}`;
+
+// днів до наступного дня народження
+const daysUntil = (m, d) => {
+  const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  let next = new Date(today.getFullYear(), m - 1, d);
+  if (next < now) next = new Date(today.getFullYear() + 1, m - 1, d);
+  return Math.round((next - now) / 86400000);
+};
+
+// Сьогоднішні святкувальники
+const todays = PEOPLE.filter((p) => p.m === tM && p.d === tD);
+if (todays.length) {
+  document.getElementById("today-section").hidden = false;
+  document.getElementById("bday-hero").innerHTML = `
+    <div class="bday-emoji">🎉🎂🎈</div>
+    <div class="bday-title">Сьогодні святкує${todays.length > 1 ? "ють" : ""}!</div>
+    <div class="bday-names">${todays.map((p) => `<span>${first(p.n)}</span>`).join("")}</div>
+    <div class="bday-sub">Не забудьте привітати 💛</div>`;
+  launchConfetti();
+}
+
+// Найближчі 5
+const upcoming = [...PEOPLE].map((p) => ({ ...p, u: daysUntil(p.m, p.d) }))
+  .sort((a, b) => a.u - b.u).slice(0, 6);
+document.getElementById("upcoming").innerHTML = upcoming.map((p) => {
+  const label = p.u === 0 ? "сьогодні" : p.u === 1 ? "завтра" : `через ${p.u} ${plural(p.u)}`;
+  return `<div class="up-card${p.u === 0 ? " is-today" : ""}">
+    <div class="up-date">${p.d} <small>${MONTHS[p.m]}</small></div>
+    <div class="up-name">${first(p.n)}</div>
+    <div class="up-in">${label}</div>
+  </div>`;
+}).join("");
+function plural(n) {
+  const a = n % 100, b = n % 10;
+  if (a > 10 && a < 20) return "днів";
+  if (b === 1) return "день";
+  if (b >= 2 && b <= 4) return "дні";
+  return "днів";
+}
+
+// Календар по місяцях
+let html = "";
+for (let m = 1; m <= 12; m++) {
+  const list = PEOPLE.filter((p) => p.m === m).sort((a, b) => a.d - b.d);
+  if (!list.length) continue;
+  html += `<div class="month-card${m === tM ? " current" : ""}">
+    <div class="month-title">${MONTH_NAME[m]}${m === tM ? '<span class="now-tag">цей місяць</span>' : ""}</div>
+    ${list.map((p) => `<div class="bday-row${p.m === tM && p.d === tD ? " today" : ""}">
+      <span class="bday-day">${p.d}</span><span class="bday-person">${first(p.n)}</span>
+    </div>`).join("")}
+  </div>`;
+}
+document.getElementById("months-grid").innerHTML = html;
+
+// Без дати
+if (NO_DATE.length) {
+  document.getElementById("nodate-section").hidden = false;
+  document.getElementById("nodate").innerHTML = NO_DATE.map((n) => `<span class="chip">${first(n)}</span>`).join("");
+}
+
+// Конфеті
+function launchConfetti() {
+  const cv = document.getElementById("confetti");
+  const ctx = cv.getContext("2d");
+  let W, H;
+  const resize = () => { W = cv.width = innerWidth; H = cv.height = innerHeight; };
+  resize(); addEventListener("resize", resize);
+  const colors = ["#7b7fe0", "#e4f04a", "#f6a898", "#8bbf4e", "#d8a24a", "#a9acf2"];
+  const P = Array.from({ length: 160 }, () => ({
+    x: Math.random() * W, y: Math.random() * -H,
+    r: 5 + Math.random() * 7, c: colors[(Math.random() * colors.length) | 0],
+    vy: 2 + Math.random() * 3, vx: -1.5 + Math.random() * 3,
+    a: Math.random() * Math.PI, va: -0.1 + Math.random() * 0.2,
+  }));
+  let t = 0;
+  (function frame() {
+    ctx.clearRect(0, 0, W, H);
+    P.forEach((p) => {
+      p.y += p.vy; p.x += p.vx; p.a += p.va;
+      if (p.y > H + 20) { p.y = -20; p.x = Math.random() * W; }
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * 0.6);
+      ctx.restore();
+    });
+    if (++t < 520) requestAnimationFrame(frame);
+    else cv.remove();
+  })();
+}
+</script>
+<script src="assets/site.js"></script>
+</body>
+</html>

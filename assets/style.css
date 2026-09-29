@@ -399,3 +399,42 @@ ol.steps li::before {
   vertical-align: baseline; font-size: .48em; line-height: 1;
   margin-left: 1px; align-self: baseline; position: relative; top: .06em;
 }
+
+/* ---------- Дні народження ---------- */
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 200; }
+
+.bday-hero {
+  text-align: center; border-radius: var(--radius); padding: 36px 24px; color: #fff;
+  background: linear-gradient(135deg, var(--violet), #9a7de0 55%, var(--lime-deep));
+  box-shadow: 0 12px 40px rgba(123,127,224,.35); animation: bdayPop .6s cubic-bezier(.2,.9,.3,1.3);
+}
+@keyframes bdayPop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.bday-emoji { font-size: 2.6rem; animation: bounce 1.4s ease-in-out infinite; }
+@keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.bday-title { font-family: "Unbounded", sans-serif; font-weight: 700; font-size: clamp(1.4rem,4vw,2rem); margin: 8px 0; }
+.bday-names { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 12px 0; }
+.bday-names span { background: rgba(255,255,255,.22); border-radius: 999px; padding: 8px 20px; font-weight: 600; font-size: 1.1rem; }
+.bday-sub { opacity: .92; }
+
+.upcoming { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.up-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; text-align: center; }
+.up-card.is-today { background: var(--lime); border-color: transparent; }
+.up-date { font-family: "Unbounded", sans-serif; font-weight: 700; font-size: 1.6rem; color: var(--violet); }
+.up-card.is-today .up-date { color: var(--ink); }
+.up-date small { font-family: "Inter", sans-serif; font-size: .8rem; font-weight: 500; display: block; color: var(--muted); }
+.up-card.is-today .up-date small { color: var(--ink); }
+.up-name { font-weight: 600; margin: 6px 0 2px; }
+.up-in { font-size: .82rem; color: var(--muted); }
+.up-card.is-today .up-in { color: var(--ink); font-weight: 600; }
+
+.months-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.month-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+.month-card.current { border-color: var(--violet); box-shadow: 0 0 0 3px var(--violet-bg); }
+.month-title { font-family: "Unbounded", sans-serif; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.now-tag { font-family: "Inter", sans-serif; font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; background: var(--violet); color: #fff; padding: 3px 8px; border-radius: 999px; }
+.bday-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.bday-row:last-child { border-bottom: 0; }
+.bday-day { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--violet-bg); color: var(--violet); display: grid; place-items: center; font-weight: 700; font-size: .9rem; }
+.bday-person { font-size: .95rem; }
+.bday-row.today .bday-day { background: var(--lime); color: var(--ink); }
+.bday-row.today .bday-person { font-weight: 700; }
