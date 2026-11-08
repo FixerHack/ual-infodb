@@ -36,7 +36,7 @@ const SECTIONS = [
     title: "Осередок",
     pages: [
       { href: "dni-narodzhennia.html", title: "Дні народження" },
-      { href: "doshka.html", title: "Дошка (не)пошани" },
+      { href: "doshka.html", title: "Дошка пошани" },
     ],
   },
 ];
