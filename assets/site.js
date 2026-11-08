@@ -2,11 +2,11 @@
 // Щоб додати сторінку — додай її в SECTIONS (у наявний розділ або новий).
 const SECTIONS = [
   { title: "Головна", pages: [{ href: "index.html", title: "Головна" }] },
-  { title: "Таймлайн", pages: [{ href: "timeline.html", title: "Таймлайн року" }] },
+  { title: "Таймлайн", pages: [{ href: "timeline.html", title: "Таймлайн року" }, { href: "sporyadzhennia.html", title: "Спорядження на вишкіл" }] },
   { title: "Стратегічні теми", pages: [{ href: "temy.html", title: "Стратегічні теми" }] },
   { title: "Партнерства", pages: [{ href: "partnerstva.html", title: "Партнерства" }] },
   { title: "Кейси", pages: [{ href: "keysy.html", title: "Кейси" }] },
-  { title: "«ГЕНОМ»", pages: [{ href: "genom.html", title: "«ГЕНОМ» Лідера" }] },
+  { title: "«ГЕНОМ»", pages: [{ href: "genom.html", title: "Усі гени" }, { href: "gen-d.html", title: "D · Decision Making" }] },
   { title: "Дні народження", pages: [{ href: "dni-narodzhennia.html", title: "Дні народження" }] },
   {
     title: "Самоврядування",
@@ -17,6 +17,7 @@ const SECTIONS = [
       { href: "kapitany.html", title: "Капітани" },
       { href: "departamenty.html", title: "Департаменти" },
       { href: "studadmin.html", title: "Студадмін і чергові" },
+      { href: "porushennia.html", title: "Порушення правил" },
     ],
   },
 ];

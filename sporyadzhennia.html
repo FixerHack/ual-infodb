@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Спорядження на вишкіл · Документація УАЛ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Вишколи та експедиції</span>
+      <h1>Спорядження <span>на вишкіл</span></h1>
+      <p class="lead">Приклад повного виряду для вишколу: одяг, спорядження, гігієна й аптечка. Конкретні моделі — орієнтир, а не обов'язкова вимога: головне, щоб річ виконувала ту саму функцію.</p>
+      <p class="detail-note">Можна відмічати речі, які вже зібрав — позначки зберігаються в цьому браузері.</p>
+      <div class="chips">
+        <a class="chip" href="#odyah">👕 Одяг</a>
+        <a class="chip" href="#vyriad">🎒 Спорядження</a>
+        <a class="chip" href="#hihiena">🧴 Гігієна та аптечка</a>
+        <button class="chip" id="pack-reset" type="button">↺ Скинути позначки</button>
+      </div>
+    </section>
+    <div id="packs"></div>
+  </div>
+</main>
+
+<script>
+// Списки виряду: [що, модель]. Щоб змінити — редагуй тут.
+const PACKS = [
+  { id: "odyah", icon: "👕", title: "Одяг", items: [
+    ["Куртка", "Turbat Alay"], ["Куртка", "Turbat Fluger 2"], ["Футболка", "Turbat Hike"],
+    ["Штани", "Turbat Forester 2 Mns"], ["Рукавиці", "Turbat Lemur"], ["Труси", "Turbat Retezat Boxer Mns"],
+    ["Сандалі", "Merrell Hydro MOC"], ["Куртка", "Turbat Trek Pro"], ["Футболка", "Turbat Hike Lite LS"],
+    ["Термофутболка", "Turbat Retezat Top"], ["Штани", "Turbat Camp 2"], ["Термотруси", "Turbat Hike Boxer 2"],
+    ["Кросівки", "Merrell Moab 3 GTX"], ["Шапка", "Turbat Saga"], ["Пов'язка", "Buff Coolnet UV+"],
+    ["Шкарпетки", "Turbat Mountain Trip"], ["Шорти", "Turbat Odyssey Lite Shorts"], ["Шкарпетки пухові", "Turbat Down Socks"],
+  ] },
+  { id: "vyriad", icon: "🎒", title: "Спорядження", items: [
+    ["Рюкзак", "Osprey Exos 48"], ["Крісло", "Helinox Ground Chair Black"], ["Подушка", "Exped Ultra Pillow M"],
+    ["Рейнкавер", "Osprey Ultralight Raincover M"], ["Поясна сумка", "Osprey Ultralight Stuff Waist Pack"],
+    ["Ремонтний набір", "Exped Mat Field Repair Kit"], ["Ліхтарик", "Petzl Actik Core 600 лм"],
+    ["Гермомішок", "Osprey DrySack 6L w/Window"], ["Трекінгові палиці", "Black Diamond Trail Back"],
+    ["Спальник пуховий", "Turbat Kuk 500"], ["Килимок надувний", "Big Agnes Divide Insulated 20×72 Regular"],
+    ["Намет", "Turbat Shanta Pro 2"], ["Гермомішок", "Osprey DrySack 12L w/Window"],
+  ] },
+  { id: "hihiena", icon: "🧴", title: "Гігієна та аптечка", items: [
+    ["Органайзер", "Osprey Ultralight Roll Organizer"], ["Аптечка", "Lifesystems Adventurer First Aid Kit"],
+    ["Окуляри", "Julbo Powell"], ["Лопатка", "Sea to Summit Pocket Trowel Nylon"],
+    ["Серветки вологі", "Sea to Summit Wilderness Wipes Compact, 36 шт"], ["Рушник", "Turbat Lagoon M"],
+    ["Сонцезахисний крем", "Lifesystems Sport SUN SPF50+"], ["Шампунь", "Sea to Summit Trek & Travel Pocket"],
+    ["Мило", "Sea to Summit Trek Body Wash"], ["Бальзам для губ", "Lifesystems Mountain SUN Stick"],
+    ["Ніж", "Victorinox Classic SD"], ["Кондиціонер", "Sea to Summit Trek & Travel Pocket Conditioning Shampoo"],
+    ["Мило", "Sea to Summit Wilderness Wash Pocket Soap"], ["Спрей від комах", "BaseCamp Deet 35, 100 ml"],
+  ] },
+];
+
+const KEY = "ual-pack-v1";
+let done = {};
+try { done = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(done)); } catch (e) {} };
+
+function render() {
+  document.getElementById("packs").innerHTML = PACKS.map((p, s) => {
+    const got = p.items.filter((_, i) => done[`${p.id}-${i}`]).length;
+    return `<section id="${p.id}" class="pack-sec">
+      <div class="section-title"><span class="num">0${s + 1}</span><h2>${p.icon} ${p.title}</h2>
+        <span class="pack-count">${got} / ${p.items.length}</span></div>
+      <div class="pack">${p.items.map(([what, model], i) => {
+        const k = `${p.id}-${i}`;
+        return `<label class="pack-item${done[k] ? " done" : ""}">
+          <input type="checkbox" data-k="${k}"${done[k] ? " checked" : ""}>
+          <span class="pack-no">${i + 1}</span>
+          <span class="pack-txt"><b>${what}</b><small>${model}</small></span>
+        </label>`;
+      }).join("")}</div>
+    </section>`;
+  }).join("");
+}
+render();
+document.getElementById("packs").addEventListener("change", (e) => {
+  const k = e.target.dataset.k;
+  if (!k) return;
+  if (e.target.checked) done[k] = 1; else delete done[k];
+  save(); render();
+});
+document.getElementById("pack-reset").addEventListener("click", () => { done = {}; save(); render(); });
+</script>
+<script src="assets/site.js"></script>
+</body>
+</html>
