@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Книжки до прочитання · Документація УАЛ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Читаємо разом</span>
+      <h1>Книжки <span>до прочитання</span></h1>
+      <p class="lead">Список книжок, які варто прочитати кожному студенту осередку. Де текст є у вільному доступі — є кнопка «Читати безкоштовно», для решти — посилання, де купити паперову чи електронну версію.</p>
+      <p class="detail-note">Відмічай прочитане — позначки зберігаються в цьому браузері. <span id="read-count"></span></p>
+    </section>
+
+    <section>
+      <div class="books" id="books"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+// Список книжок. cover — файл у assets/covers, links — [підпис, url, тип], тип: free | buy
+const BOOKS = [
+  {
+    id: "semenovi-zori", title: "Семенові зорі", author: "Андрій Зелінський", meta: "Видавництво Старого Лева, 2023",
+    cover: "semenovi-zori.jpg",
+    about: "Алегорична казка про хлопця Семена, чия найбільша мрія — навчитися запалювати зорі. Про любов, відповідальність і дорослішання; цитату з неї ми бачили на слайді «ГЕНОМ» Лідера.",
+    links: [
+      ["Купити паперову", "https://book-ye.com.ua/catalog/proza-dlya-pidlitkiv/semenovi-zori/", "buy"],
+      ["Електронна книга", "https://book-ye.com.ua/elektronni-knyhy/literatura-dlya-pidlitkiv-elektronna-knyga/proza-dlya-pidlitkiv-elektronna-knyga/e-book-semenovi-zori/", "buy"],
+    ],
+  },
+  {
+    id: "anatomiya-voyina", title: "Анатомія воїна", author: "Андрій Зелінський", meta: "2023",
+    cover: "anatomiya-voyina.jpg",
+    about: "Короткі мотиваційні тексти у трьох розділах — Дух, Шлях і Сила. Книжка корисна і військовим, і цивільним.",
+    links: [["Купити", "https://book-ye.com.ua/nekhudozhnya-literatura/tekhnichna-literatura/vijskova-sprava-ta-zbroya/anatomiya-voyina/", "buy"]],
+  },
+  {
+    id: "vohnyani-bramy", title: "Вогняні брами", author: "Стівен Прессфілд", meta: "Героїчний епос про битву під Термопілами",
+    cover: "vohnyani-bramy.jpg",
+    about: "Роман про 300 спартанців і битву під Термопілами — про мужність, дисципліну, братерство і ціну свободи.",
+    links: [["Купити", "https://book-ye.com.ua/khudozhnya-literatura/proza/suchasna-zarubizhna-proza/vohnyani-bramy-geroyichnyj-epos-pro-bytvu-pid-termopilamy/", "buy"]],
+  },
+  {
+    id: "dzhonatan", title: "Чайка Джонатан Лівінгстон", author: "Річард Бах", meta: "українською — «Джонатан Лівінгстон, мартин», Stone Publishing",
+    cover: "dzhonatan.jpg",
+    about: "Повість-притча про птаха, якому мало просто літати заради їжі: він хоче досконалості й свободи. Про покликання і вихід за межі.",
+    links: [
+      ["Купити паперову", "https://www.yakaboo.ua/ua/dzhonatan-livingston-martin-1873005.html", "buy"],
+      ["Електронна книга", "https://www.yakaboo.ua/ua/dzhonatan-livingston-martin-3060268.html", "buy"],
+    ],
+  },
+  {
+    id: "malenkyj-prynts", title: "Маленький принц", author: "Антуан де Сент-Екзюпері", meta: "видавництво «Богдан»",
+    cover: "malenkyj-prynts.jpg",
+    about: "Казка для дорослих про дружбу, відповідальність за тих, кого приручив, і про те, що найголовніше — невидиме для очей.",
+    links: [["Купити", "https://book-ye.com.ua/catalog/dytyacha-proza/malenkyj-prynts-bohdanova-shkilna-nauka/", "buy"]],
+  },
+  {
+    id: "srodna-pratsia", title: "Текст про сродну працю", author: "Григорій Сковорода", meta: "«Розмова, звана Алфавіт, або Буквар світу»",
+    cover: "bukvar-myru.jpg",
+    about: "Діалог, у якому Сковорода пояснює «сродну працю»: щастя — у праці, до якої людина має природне покликання. Тут же думка про рівність людей через їхню несхожість.",
+    links: [
+      ["Читати безкоштовно", "https://osvita.ua/school/literature/s/75131/files.html", "free"],
+      ["Купити «Буквар миру»", "https://www.yakaboo.ua/ua/bukvar-miru-kniga-dlja-simejnogo-chitannja.html", "buy"],
+    ],
+  },
+];
+
+const KEY = "ual-books-read-v1";
+let read = {};
+try { read = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(read)); } catch (e) {} };
+
+function render() {
+  document.getElementById("books").innerHTML = BOOKS.map((b) => `
+    <article class="book${read[b.id] ? " is-read" : ""}">
+      <div class="book-cover"><img src="assets/covers/${b.cover}" alt="Обкладинка: ${b.title}" loading="lazy"></div>
+      <div class="book-body">
+        <h3>${b.title}</h3>
+        <div class="book-author">${b.author}</div>
+        <div class="book-meta">${b.meta}</div>
+        <p>${b.about}</p>
+        <div class="book-links">${b.links.map(([t, u, k]) =>
+          `<a class="book-btn ${k}" href="${u}" target="_blank" rel="noopener">${k === "free" ? "📖 " : "🛒 "}${t}</a>`).join("")}</div>
+        <label class="book-read"><input type="checkbox" data-id="${b.id}"${read[b.id] ? " checked" : ""}> Прочитано</label>
+      </div>
+    </article>`).join("");
+  const n = BOOKS.filter((b) => read[b.id]).length;
+  document.getElementById("read-count").textContent = n ? `Прочитано: ${n} з ${BOOKS.length}.` : "";
+}
+render();
+document.getElementById("books").addEventListener("change", (e) => {
+  const id = e.target.dataset.id;
+  if (!id) return;
+  if (e.target.checked) read[id] = 1; else delete read[id];
+  save(); render();
+});
+</script>
+<script src="assets/site.js"></script>
+</body>
+</html>

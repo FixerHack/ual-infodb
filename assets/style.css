@@ -59,7 +59,7 @@ p { margin: 0 0 1em; }
 
 .site-header .wrap { gap: 24px; }
 
-@media (max-width: 1180px) {
+@media (max-width: 1000px) {
   .nav-toggle { display: block; }
   .nav {
     display: none; position: absolute; top: 64px; left: 0; right: 0;
@@ -548,3 +548,75 @@ button.chip { cursor: pointer; font: inherit; font-size: .88rem; font-weight: 50
 @media (max-width: 760px) { .viol { grid-template-columns: 1fr; } }
 .pack-item { position: relative; }
 .viol-self .viol-steps li.viol-end::before { background: #fff; color: var(--violet); }
+
+/* ---------- Книжки ---------- */
+.books { display: grid; gap: 18px; }
+.book {
+  display: grid; grid-template-columns: 150px 1fr; gap: 22px; align-items: start;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow);
+  transition: border-color .15s;
+}
+.book-cover { background: var(--violet-bg); border-radius: 12px; padding: 10px; display: grid; place-items: center; }
+.book-cover img { width: 100%; height: auto; border-radius: 4px; box-shadow: 0 6px 16px rgba(29,30,58,.18); }
+.book h3 { margin: 0 0 2px; font-size: 1.2rem; }
+.book-author { font-weight: 600; color: var(--violet); }
+.book-meta { font-size: .85rem; color: var(--muted); margin-bottom: 10px; }
+.book p { color: var(--muted); font-size: .95rem; }
+.book-links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.book-btn { text-decoration: none; font-weight: 600; font-size: .88rem; padding: 9px 14px; border-radius: 999px; }
+.book-btn.buy { background: var(--violet-bg); color: var(--ink); }
+.book-btn.buy:hover { background: var(--violet); color: #fff; }
+.book-btn.free { background: var(--lime); color: var(--ink); }
+.book-btn.free:hover { background: var(--lime-deep); }
+.book-read { display: inline-flex; align-items: center; gap: 8px; font-size: .9rem; font-weight: 500; cursor: pointer; }
+.book-read input { width: 18px; height: 18px; accent-color: var(--violet); }
+.book.is-read { border-color: var(--lime-deep); box-shadow: 0 0 0 3px color-mix(in srgb, var(--lime) 50%, transparent); }
+@media (max-width: 560px) { .book { grid-template-columns: 96px 1fr; gap: 14px; padding: 14px; } .book-cover { padding: 6px; } }
+
+/* ---------- Розклад англійської ---------- */
+.room { display: inline-block; padding: 4px 10px; border-radius: 8px; font-size: .82rem; font-weight: 600; }
+.room-legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.r-small { background: #e4ebfa; } .r-big { background: #cbc2e6; } .r-lounge { background: #bfd3d1; }
+.r-shelter { background: #fbf3c8; } .r-room { background: #e3e3e6; }
+.chip-on { background: var(--ink) !important; color: #fff !important; border-color: var(--ink) !important; }
+.my-group { margin-top: 14px; }
+.my-days { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }
+.my-day { display: flex; flex-direction: column; gap: 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.my-day b { font-family: "Unbounded", sans-serif; }
+.my-day.is-today { border-color: var(--violet); box-shadow: 0 0 0 3px var(--violet-bg); }
+.sched-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card); }
+.sched { border-collapse: collapse; width: 100%; min-width: 720px; font-size: .88rem; }
+.sched th, .sched td { padding: 12px 10px; text-align: center; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); }
+.sched th { background: var(--bg); font-weight: 700; font-size: .85rem; }
+.sched th small { display: block; font-weight: 500; color: var(--muted); }
+.sched .sched-date { font-family: "Unbounded", sans-serif; font-weight: 600; background: var(--bg); }
+.sched tr.is-today td { box-shadow: inset 0 0 0 2px var(--violet); }
+.sched .col-on { outline: 3px solid var(--ink); outline-offset: -3px; font-weight: 700; }
+
+/* ---------- Дошка (не)пошани ---------- */
+.board { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 34px 26px; padding: 10px 4px; }
+.polaroid {
+  position: relative; display: flex; flex-direction: column; background: #fff; border: 0; padding: 12px 12px 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,.08), 0 12px 28px rgba(29,30,58,.14); transform: rotate(var(--r));
+  transition: transform .2s, box-shadow .2s; cursor: zoom-in; font: inherit; color: var(--ink); text-align: center;
+}
+.polaroid:hover { transform: rotate(0) scale(1.04); box-shadow: 0 18px 40px rgba(29,30,58,.22); z-index: 2; }
+.polaroid img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; background: var(--violet-bg); }
+.tape {
+  position: absolute; top: -12px; left: 50%; width: 86px; height: 26px; transform: translateX(-50%) rotate(-4deg);
+  background: color-mix(in srgb, var(--lime) 75%, transparent); box-shadow: 0 1px 3px rgba(0,0,0,.1);
+}
+.pol-cap { font-family: "Caveat", cursive; font-size: 1.45rem; font-weight: 700; line-height: 1.15; margin-top: 10px; }
+.pol-note { font-size: .82rem; color: var(--muted); margin-top: 2px; }
+.polaroid.no-img { cursor: default; }
+.polaroid.no-img img { display: none; }
+.polaroid.no-img::before { content: "📸 фото скоро буде"; display: grid; place-items: center; aspect-ratio: 4 / 5; background: var(--violet-bg); color: var(--muted); font-size: .9rem; }
+.add-more { cursor: default; border: 2px dashed var(--violet-soft); box-shadow: none; background: transparent; }
+.add-more:hover { transform: rotate(var(--r)); box-shadow: none; }
+.add-plus { display: grid; place-items: center; aspect-ratio: 4 / 5; font-size: 3rem; color: var(--violet-soft); }
+.lightbox { position: fixed; inset: 0; z-index: 300; background: rgba(15,16,32,.88); display: grid; place-items: center; padding: 20px; }
+.lightbox[hidden] { display: none; }
+.lightbox figure { margin: 0; max-width: min(92vw, 900px); text-align: center; color: #fff; }
+.lightbox img { max-width: 100%; max-height: 78vh; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.lightbox figcaption { margin-top: 12px; font-size: 1rem; }
+.lb-close { position: absolute; top: 14px; right: 18px; width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(255,255,255,.14); color: #fff; font-size: 1.2rem; cursor: pointer; }

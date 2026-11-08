@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Розклад англійської · Документація УАЛ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Жовтень</span>
+      <h1>Розклад занять <span>з англійської</span></h1>
+      <p class="lead">П'ять груп за рівнями. Обери свою групу — і побачиш, де в тебе заняття кожного дня.</p>
+      <div class="room-legend" id="legend"></div>
+    </section>
+
+    <section>
+      <div class="section-title"><span class="num">01</span><h2>Моя група</h2></div>
+      <div class="chips" id="group-chips"></div>
+      <div class="my-group" id="my-group"></div>
+    </section>
+
+    <section>
+      <div class="section-title"><span class="num">02</span><h2>Увесь розклад</h2></div>
+      <div class="sched-wrap"><table class="sched" id="sched"></table></div>
+    </section>
+  </div>
+</main>
+
+<script>
+// Розклад. Щоб оновити на наступний місяць — заміни GROUPS і DAYS.
+const ROOMS = {
+  "малий лекторій": "r-small", "великий лекторій": "r-big", "лаундж": "r-lounge", "укриття": "r-shelter", "кімната": "r-room",
+};
+const GROUPS = [
+  { t: "Анна Мироненко", lvl: "A2/B1" },
+  { t: "Вікторія Томків", lvl: "B1" },
+  { t: "Олеся Буфан / Євгенія Рупняк", lvl: "B2" },
+  { t: "Лілія Тимофійчук", lvl: "B2" },
+  { t: "Софія Віндерських", lvl: "C1", online: true },
+];
+const DAYS = [
+  ["06.10", ["малий лекторій", "лаундж", "укриття", "великий лекторій", "кімната"]],
+  ["08.10", ["укриття", "великий лекторій", "малий лекторій", "лаундж", "кімната"]],
+  ["13.10", ["лаундж", "укриття", "великий лекторій", "малий лекторій", "кімната"]],
+  ["15.10", ["великий лекторій", "малий лекторій", "лаундж", "укриття", "кімната"]],
+  ["20.10", ["укриття", "великий лекторій", "малий лекторій", "лаундж", "кімната"]],
+  ["22.10", ["малий лекторій", "лаундж", "укриття", "великий лекторій", "кімната"]],
+];
+
+const now = new Date();
+const today = String(now.getDate()).padStart(2, "0") + "." + String(now.getMonth() + 1).padStart(2, "0");
+const room = (r) => `<span class="room ${ROOMS[r]}">${r}</span>`;
+
+document.getElementById("legend").innerHTML = Object.keys(ROOMS).map(room).join("");
+
+document.getElementById("sched").innerHTML = `
+  <thead><tr><th>Дата</th>${GROUPS.map((g) => `<th>${g.t}<small>${g.lvl}${g.online ? " · онлайн" : ""}</small></th>`).join("")}</tr></thead>
+  <tbody>${DAYS.map(([d, rs]) => `<tr${d === today ? ' class="is-today"' : ""}><td class="sched-date">${d}</td>${rs.map((r) => `<td class="${ROOMS[r]}">${r}</td>`).join("")}</tr>`).join("")}</tbody>`;
+
+let KEY = "ual-eng-group", sel = 0;
+try { sel = +(localStorage.getItem(KEY) || 0); } catch (e) {}
+function pick(i) {
+  sel = i;
+  try { localStorage.setItem(KEY, i); } catch (e) {}
+  document.getElementById("group-chips").innerHTML = GROUPS.map((g, j) =>
+    `<button type="button" class="chip${j === sel ? " chip-on" : ""}" data-i="${j}">${g.lvl} · ${g.t.split(" / ")[0].split(" ")[0]}</button>`).join("");
+  const g = GROUPS[sel];
+  document.getElementById("my-group").innerHTML = `
+    <div class="card"><span class="tag">${g.lvl}${g.online ? " · онлайн" : ""}</span><h3>${g.t}</h3>
+      <div class="my-days">${DAYS.map(([d, rs]) => `<div class="my-day${d === today ? " is-today" : ""}"><b>${d}</b>${room(rs[sel])}</div>`).join("")}</div>
+    </div>`;
+  document.querySelectorAll(".sched th, .sched td").forEach((c) => c.classList.toggle("col-on", c.cellIndex === sel + 1));
+}
+document.getElementById("group-chips").addEventListener("click", (e) => { const b = e.target.closest("[data-i]"); if (b) pick(+b.dataset.i); });
+pick(sel);
+</script>
+<script src="assets/site.js"></script>
+</body>
+</html>

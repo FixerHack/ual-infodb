@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Дошка (не)пошани · Документація УАЛ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Тільки найкращі моменти</span>
+      <h1>Дошка <span>(не)пошани</span></h1>
+      <p class="lead">Кадри, які увійшли в історію осередку. Без них цей рік був би значно нуднішим. Натисни на фото, щоб розгорнути.</p>
+    </section>
+
+    <section>
+      <div class="board" id="board"></div>
+    </section>
+  </div>
+</main>
+
+<div class="lightbox" id="lightbox" hidden>
+  <button class="lb-close" type="button" aria-label="Закрити">✕</button>
+  <figure><img id="lb-img" alt=""><figcaption id="lb-cap"></figcaption></figure>
+</div>
+
+<script>
+// Фото кладемо в assets/fun/ і додаємо рядок сюди.
+// img — файл, caption — підпис (жартівлива «номінація»), note — дрібний текст під ним.
+const FUN = [
+  { img: "mc-na-stseni.jpg", caption: "MC осередку виходить на сцену", note: "сквот рівня «легенда»" },
+];
+
+const board = document.getElementById("board");
+board.innerHTML = FUN.map((f, i) => `
+  <button type="button" class="polaroid" data-i="${i}" style="--r:${[-3, 2, -1.5, 3, -2.5, 1][i % 6]}deg">
+    <span class="tape"></span>
+    <img src="assets/fun/${f.img}" alt="${f.caption}" loading="lazy" onerror="this.closest('.polaroid').classList.add('no-img')">
+    <span class="pol-cap">${f.caption}</span>
+    ${f.note ? `<span class="pol-note">${f.note}</span>` : ""}
+  </button>`).join("") +
+  `<div class="polaroid add-more" style="--r:2deg"><span class="tape"></span><span class="add-plus">＋</span><span class="pol-cap">Тут міг бути твій кадр</span></div>`;
+
+const lb = document.getElementById("lightbox");
+board.addEventListener("click", (e) => {
+  const p = e.target.closest(".polaroid[data-i]");
+  if (!p || p.classList.contains("no-img")) return;
+  const f = FUN[+p.dataset.i];
+  document.getElementById("lb-img").src = `assets/fun/${f.img}`;
+  document.getElementById("lb-cap").innerHTML = `<b>${f.caption}</b>${f.note ? " — " + f.note : ""}`;
+  lb.hidden = false;
+});
+const close = () => { lb.hidden = true; };
+lb.addEventListener("click", (e) => { if (e.target === lb || e.target.closest(".lb-close")) close(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+</script>
+<script src="assets/site.js"></script>
+</body>
+</html>
