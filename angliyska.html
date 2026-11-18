@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Розклад англійської · Документація УАЛ</title>
+  <meta name="color-scheme" content="light dark">
+  <title>УАЛ | Розклад англійської</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=20261118">
 </head>
 <body>
 <main>
@@ -80,6 +81,6 @@ function pick(i) {
 document.getElementById("group-chips").addEventListener("click", (e) => { const b = e.target.closest("[data-i]"); if (b) pick(+b.dataset.i); });
 pick(sel);
 </script>
-<script src="assets/site.js"></script>
+<script src="assets/site.js?v=20261118"></script>
 </body>
 </html>

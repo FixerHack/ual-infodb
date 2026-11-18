@@ -3,106 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Документація УАЛ</title>
+  <meta name="color-scheme" content="light dark">
+  <title>УАЛ | Головна</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=20261118">
 </head>
 <body>
 <main>
   <div class="wrap">
-    <section class="hero">
+    <section class="home-hero">
       <span class="eyebrow">Українська Академія Лідерства · Львів</span>
-      <h1>Документація <span>УАЛ</span></h1>
-      <p class="lead">Усе, що потрібно знати студенту осередку в одному місці: як влаштований навчальний рік, які є події, що вивчаємо і як працює самоврядування.</p>
+      <h1>Усе про життя <span style="color:var(--violet)">осередку</span></h1>
+      <p class="lead">Навчальний рік, книжки, самоврядування й дні народження — в одному місці. Обери розділ нижче.</p>
       <div class="now-card" id="now-card" hidden></div>
     </section>
 
     <section>
-      <div class="section-title"><span class="num">01</span><h2>Розділи</h2></div>
-      <div class="grid grid-2">
-        <a class="card hub-card" href="timeline.html">
-          <span class="tag">Навчальний рік</span>
-          <h3>Таймлайн року</h3>
-          <p>Чотири модулі (Становлення, Воїн, Дослідник, Мандрівник), вишколи, експедиції, форуми, канікули та каденції самоврядування.</p>
-          <div class="hub-bar">
-            <span class="m1"></span><span class="m1"></span><span class="m2"></span><span class="m2"></span><span class="m3"></span><span class="m3"></span><span class="m3"></span><span class="m4"></span><span class="m4"></span><span class="m4"></span>
-          </div>
-          <span class="arrow">Відкрити →</span>
-        </a>
-        <a class="card lime hub-card" href="temy.html">
-          <span class="tag">Зміст навчання</span>
-          <h3>Стратегічні теми</h3>
-          <p>Шість напрямів: державотворення, освіта і виховання, здоров'я, національна ідентичність, безпека та оборона, підприємництво. Що вивчаємо і як.</p>
-          <span class="arrow" style="color:var(--ink)">Відкрити →</span>
-        </a>
-        <a class="card lime hub-card" href="dni-narodzhennia.html">
-          <span class="tag">Осередок</span>
-          <h3>🎂 Дні народження</h3>
-          <p>Календар днів народження студентів по місяцях, найближчі свята та привітальна анімація в день народження.</p>
-          <span class="arrow" style="color:var(--ink)">Відкрити →</span>
-        </a>
-        <a class="card hub-card" href="partnerstva.html">
-          <span class="tag">Playbook</span>
-          <h3>🤝 Партнерства</h3>
-          <p>Як осередок будує партнерства: від першого контакту й зустрічі до етикету, форми одягу та шляху партнерства.</p>
-          <span class="arrow">Відкрити →</span>
-        </a>
-        <a class="card hub-card" href="keysy.html">
-          <span class="tag">Метод навчання</span>
-          <h3>🧩 Кейси</h3>
-          <p>Як працюють кейси, чотири питання розбору й повний кейс «Підйомний міст» про відповідальність.</p>
-          <span class="arrow">Відкрити →</span>
-        </a>
-        <a class="card hub-card" href="knyzhky.html">
-          <span class="tag">Навчання</span>
-          <h3>📚 Книжки до прочитання</h3>
-          <p>«Семенові зорі», «Анатомія воїна», «Вогняні брами», «Маленький принц», «Чайка Джонатан Лівінгстон» і Сковорода про сродну працю.</p>
-          <span class="arrow">Відкрити →</span>
-        </a>
-        <a class="card lime hub-card" href="doshka.html">
-          <span class="tag">Осередок</span>
-          <h3>📸 Дошка пошани</h3>
-          <p>Найкращі (і найсмішніші) кадри року осередку.</p>
-          <span class="arrow" style="color:var(--ink)">Відкрити →</span>
-        </a>
-        <a class="card hub-card genome-hub" href="genom.html">
-          <span class="tag">Модель лідерства</span>
-          <h3>«ГЕНОМ» Лідера</h3>
-          <p>Десять «генів» особистого лідерства: ухвалення рішень, цілі, сталий розвиток, рефлексія, герменевтика, приклад, повноваження, капітал, комунікація, практика.</p>
-          <span class="arrow">Відкрити →</span>
-        </a>
-        <a class="card violet hub-card" href="samovryaduvannya.html">
-          <span class="tag">Осередок</span>
-          <h3>Самоврядування</h3>
-          <p>Структура та гілки влади, Рада осередку, капітани, сім департаментів, студадмін і чергові.</p>
-          <span class="arrow">Відкрити →</span>
-        </a>
-      </div>
-    </section>
-
-    <section>
-      <div class="section-title"><span class="num">02</span><h2>Швидкі посилання</h2></div>
-      <div class="chips">
-        <a class="chip" href="timeline.html#module-1">🟧 Модуль 1 · Становлення</a>
-        <a class="chip" href="timeline.html#module-2">🩷 Модуль 2 · Воїн</a>
-        <a class="chip" href="timeline.html#module-3">🟨 Модуль 3 · Дослідник</a>
-        <a class="chip" href="timeline.html#module-4">🟩 Модуль 4 · Мандрівник</a>
-        <a class="chip" href="temy.html#derzhavotvorennia">🏛️ Державотворення</a>
-        <a class="chip" href="temy.html#bezpeka">🛡️ Безпека та оборона</a>
-        <a class="chip" href="partnerstva.html">🤝 Партнерства</a>
-        <a class="chip" href="sporyadzhennia.html">🎒 Спорядження на вишкіл</a>
-        <a class="chip" href="angliyska.html">🇬🇧 Розклад англійської</a>
-        <a class="chip" href="gen-d.html">🧬 Ген D · рішення</a>
-        <a class="chip" href="porushennia.html">⚖️ Порушення правил</a>
-        <a class="chip" href="keysy.html#most">🧩 Кейс «Підйомний міст»</a>
-        <a class="chip" href="model.html">🔺 Освітня модель</a>
-        <a class="chip" href="rada.html">🏛️ Рада осередку</a>
-        <a class="chip" href="kapitany.html">🧭 Капітани</a>
-        <a class="chip" href="departamenty.html">🗂️ Департаменти</a>
-        <a class="chip" href="studadmin.html">🧹 Студадмін і чергові</a>
-      </div>
+      <div class="cats" id="cats"></div>
     </section>
   </div>
 </main>
@@ -124,6 +43,19 @@
     el.hidden = false;
   })();
 </script>
-<script src="assets/site.js"></script>
+<script src="assets/site.js?v=20261118"></script>
+<script>
+  // Плитки розділів беруться з того ж списку, що й меню (assets/site.js)
+  document.getElementById("cats").innerHTML = UAL_SECTIONS.filter((s) => !s.home).map((s) => {
+    const pages = s.pages.filter((p) => !p.hidden);
+    const feature = s.title === "Бібліотека";
+    const text = `<h3><a href="${pages[0].href}">${s.title}</a></h3><p>${s.desc}</p>`;
+    return `<div class="cat${feature ? " cat-feature" : ""}" style="--acc:${s.accent}">
+      <span class="cat-ico">${s.icon}</span>
+      ${feature ? `<div class="cat-text">${text}<div class="cat-sub"><a href="biblioteka.html">Відкрити каталог →</a></div></div>` : text}
+      ${!feature && pages.length > 1 ? `<div class="cat-sub">${pages.map((p) => `<a href="${p.href}">${p.title}</a>`).join("")}</div>` : ""}
+    </div>`;
+  }).join("");
+</script>
 </body>
 </html>

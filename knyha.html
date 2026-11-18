@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>УАЛ | Бібліотека</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css?v=20261118">
+</head>
+<body>
+<main>
+  <div class="wrap" id="page"></div>
+</main>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <button class="modal-x" type="button" data-close aria-label="Закрити">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="assets/students.js?v=20261118"></script>
+<script src="assets/library-data.js?v=20261118"></script>
+<script src="assets/library.js?v=20261118"></script>
+<script>
+const id = new URLSearchParams(location.search).get("id");
+const book = BOOKS.find((b) => b.id === id);
+const page = document.getElementById("page");
+let loans = {}, students = STUDENTS, busy = false;
+
+if (!book) {
+  page.innerHTML = `<section class="hero"><h1>Книжку не знайдено</h1><p class="lead">Можливо, посилання застаріло.</p><a class="btn" href="biblioteka.html">← До бібліотеки</a></section>`;
+} else {
+  document.body.classList.add("has-actionbar");
+  const author = AUTHORS[book.authorId] || { name: "", bio: [] };
+  const others = BOOKS.filter((b) => b.authorId === book.authorId && b.id !== book.id);
+  document.title = `УАЛ | ${book.title}`;
+  page.innerHTML = `
+    <a class="back-link" href="biblioteka.html">← Усі книжки</a>
+    <section class="book-hero">
+      <div class="bk-cover-col">
+        <div class="bk-flip${book.back ? " can-flip" : ""}" id="flip">
+          <img class="bk-front" src="${book.front}" alt="Обкладинка «${book.title}»">
+          ${book.back ? `<img class="bk-back" src="${book.back}" alt="Задня обкладинка «${book.title}»">` : ""}
+        </div>
+        ${book.back ? `<button class="btn ghost small" type="button" id="flip-btn">↻ Перевернути</button>` : ""}
+      </div>
+      <div class="bk-main">
+        <span class="eyebrow">${book.genre}</span>
+        <h1>${book.title}</h1>
+        <a class="bk-author" href="#author">${author.name}</a>
+        <p class="lead">${book.short}</p>
+        <div class="bk-status" id="status"><div class="skeleton"></div></div>
+        <dl class="bk-meta">
+          ${book.publisher ? `<div><dt>Видавництво</dt><dd>${book.publisher}</dd></div>` : ""}
+          ${book.year ? `<div><dt>Рік</dt><dd>${book.year}</dd></div>` : ""}
+          ${book.pages ? `<div><dt>Сторінок</dt><dd>${book.pages}</dd></div>` : ""}
+          ${book.isbn ? `<div><dt>ISBN</dt><dd>${book.isbn}</dd></div>` : ""}
+        </dl>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title"><span class="num">01</span><h2>Про книжку</h2></div>
+      <div class="card prose">${book.description.map((p) => `<p>${p}</p>`).join("")}</div>
+    </section>
+
+    <section id="author">
+      <div class="section-title"><span class="num">02</span><h2>Про автора</h2></div>
+      <div class="card author-card">
+        <div class="author-ava">${author.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
+        <div>
+          <h3>${author.name}</h3>
+          ${author.role ? `<div class="author-role">${author.role}</div>` : ""}
+          <div class="prose">${author.bio.map((p) => `<p>${p}</p>`).join("")}</div>
+          ${others.length ? `<div class="author-more"><b>Ще в бібліотеці:</b> ${others.map((b) => `<a href="knyha.html?id=${b.id}">${b.title}</a>`).join(", ")}</div>` : ""}
+        </div>
+      </div>
+    </section>`;
+
+  const flip = () => document.getElementById("flip").classList.toggle("flipped");
+  document.getElementById("flip-btn")?.addEventListener("click", flip);
+  if (book.back) document.getElementById("flip").addEventListener("click", flip);
+
+  if (Library.demo) page.querySelector(".bk-status").insertAdjacentHTML("afterend",
+    `<div class="demo-note small">Журнал ще налаштовується: поки що позначки зберігаються лише у твоєму браузері.</div>`);
+
+  renderStatus(true);
+  Library.state().then((r) => {
+    if (r.ok) { loans = r.loans || {}; students = r.students || STUDENTS; }
+    else toast(r.error, "err");
+    renderStatus();
+  });
+}
+
+function renderStatus(loading) {
+  const el = document.getElementById("status");
+  if (loading) return;
+  const l = loans[book.id];
+  el.className = "bk-status " + (l ? "taken" : "free");
+  el.innerHTML = l
+    ? `<div><div class="bk-st-label">Зараз на руках</div><div class="bk-st-name">${l.name}</div>${l.date ? `<div class="bk-st-date">з ${Library.fmtDate(l.date)}</div>` : ""}</div>
+       <button class="btn ghost" type="button" id="act">Повернути<span class="hide-sm"> книжку</span></button>`
+    : `<div><div class="bk-st-label">Статус</div><div class="bk-st-name">Книжка вільна</div></div>
+       <button class="btn" type="button" id="act">Взяти<span class="hide-sm"> книжку</span></button>`;
+  document.getElementById("act").addEventListener("click", l ? askReturn : askTake);
+}
+
+const modal = document.getElementById("modal");
+const openModal = (html) => { document.getElementById("modal-body").innerHTML = html; modal.hidden = false; };
+const closeModal = () => { modal.hidden = true; };
+modal.addEventListener("click", (e) => { if (e.target === modal || e.target.closest("[data-close]")) closeModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+function askTake() {
+  openModal(`
+    <h3 id="modal-title">Взяти «${book.title}»</h3>
+    <p class="detail-note" style="margin-top:0">Обери своє ім'я зі списку студентів.</p>
+    <select id="who" class="field"><option value="">— Обери себе —</option>${[...students].sort((a, b) => a.localeCompare(b, "uk")).map((s) => `<option>${s}</option>`).join("")}</select>
+    <div class="modal-actions"><button class="btn ghost" type="button" data-close>Скасувати</button><button class="btn" type="button" id="ok">Підтвердити</button></div>`);
+  document.getElementById("who").focus();
+  document.getElementById("ok").addEventListener("click", async () => {
+    const name = document.getElementById("who").value;
+    if (!name) return toast("Спочатку обери своє ім'я", "err");
+    await send(() => Library.take(book, name), `Записали: книжка у тебе, ${name.split(" ")[1] || name}!`);
+  });
+}
+
+function askReturn() {
+  const l = loans[book.id];
+  openModal(`
+    <h3 id="modal-title">Повернути «${book.title}»?</h3>
+    <p>Книжку відмітять як повернену на полицю. Зараз вона записана на <b>${l.name}</b>.</p>
+    <div class="modal-actions"><button class="btn ghost" type="button" data-close>Скасувати</button><button class="btn" type="button" id="ok">Так, повертаю</button></div>`);
+  document.getElementById("ok").addEventListener("click", () => send(() => Library.giveBack(book), "Дякуємо! Книжка знову на полиці."));
+}
+
+async function send(fn, okMsg) {
+  if (busy) return;
+  busy = true;
+  const btn = document.getElementById("ok");
+  btn.disabled = true; btn.textContent = "Зберігаємо…";
+  const r = await fn();
+  busy = false;
+  if (r.loans) loans = r.loans;
+  closeModal();
+  renderStatus();
+  toast(r.ok ? okMsg : r.error, r.ok ? "ok" : "err");
+}
+</script>
+<script src="assets/site.js?v=20261118"></script>
+</body>
+</html>
