@@ -1,9 +1,8 @@
 // Журнал бібліотеки: хто яку книжку взяв.
 // Дані живуть у Google Таблиці; сайт спілкується з нею через веб-застосунок Apps Script
-// (код і інструкція — у папці google-apps-script/).
-// Встав сюди адресу веб-застосунку (закінчується на /exec). Поки порожньо — працює демо-режим
-// і позначки зберігаються лише в цьому браузері.
-const LIBRARY_API_URL = "https://script.google.com/macros/s/AKfycbzsEvrB_eoq8d1ABNl3M9M3WNXznP-2vhiNuFHJfIkXLa4m-QPLrCqORxDKFRwOMYE/exec";
+// (код і інструкція — у папці google-apps-script/). Адреса й код пристрою — в assets/core.js.
+// Якщо адреси немає, працює демо-режим і позначки зберігаються лише в цьому браузері.
+const LIBRARY_API_URL = typeof UAL_API_URL !== "undefined" ? UAL_API_URL : "";
 
 const Library = (() => {
   const DEMO_KEY = "ual-library-demo-v1";
@@ -26,31 +25,7 @@ const Library = (() => {
     } finally { clearTimeout(t); }
   }
 
-  // Випадковий код цього пристрою (живе лише в цьому браузері; IP не використовуємо)
-  const device = (() => {
-    try {
-      let id = localStorage.getItem("ual-device-id");
-      if (!id) {
-        id = Array.from(crypto.getRandomValues(new Uint8Array(6)), (x) => (x % 36).toString(36)).join("") + Date.now().toString(36).slice(-2);
-        localStorage.setItem("ual-device-id", id);
-      }
-      return id;
-    } catch (e) { return ""; }
-  })();
-
-  // Коротка назва пристрою для журналу: «iPhone · Safari»
-  const uaLabel = (() => {
-    const u = navigator.userAgent;
-    const os = /iPhone/.test(u) ? "iPhone" : /iPad/.test(u) ? "iPad" : /Android/.test(u) ? "Android"
-      : /Mac OS X/.test(u) ? "Mac" : /Windows/.test(u) ? "Windows" : /Linux/.test(u) ? "Linux" : "Інше";
-    const br = /Edg\//.test(u) ? "Edge" : /SamsungBrowser/.test(u) ? "Samsung" : /OPR\//.test(u) ? "Opera"
-      : /Firefox|FxiOS/.test(u) ? "Firefox" : /Chrome|CriOS/.test(u) ? "Chrome" : /Safari/.test(u) ? "Safari" : "Браузер";
-    return os + " · " + br;
-  })();
-
-  // Ім'я, яке з цього пристрою обирали минулого разу (щоб підставляти у список)
-  const lastName = () => { try { return localStorage.getItem("ual-last-name") || ""; } catch (e) { return ""; } };
-  const rememberName = (n) => { try { localStorage.setItem("ual-last-name", n); } catch (e) {} };
+  const dev = () => (typeof UAL !== "undefined" ? { device: UAL.device, ua: UAL.ua, type: UAL.type } : {});
 
   // Каталог для аркуша «Стан книжок» у таблиці
   const catalog = () => (typeof BOOKS === "undefined" ? [] : BOOKS.map((b) => ({
@@ -75,8 +50,8 @@ const Library = (() => {
       writeDemo(l);
       return { ok: true, loans: l };
     }
-    const r = await call({ action: "take", bookId: book.id, title: book.title, name, confirm, device, ua: uaLabel, books: catalog() });
-    if (r.ok) rememberName(name);
+    const r = await call({ action: "take", bookId: book.id, title: book.title, name, confirm, ...dev(), books: catalog() });
+    if (r.ok && typeof UAL !== "undefined") UAL.rememberName(name);
     return r;
   }
 
@@ -87,13 +62,15 @@ const Library = (() => {
       writeDemo(l);
       return { ok: true, loans: l };
     }
-    return call({ action: "return", bookId: book.id, title: book.title, device, ua: uaLabel, books: catalog() });
+    return call({ action: "return", bookId: book.id, title: book.title, ...dev(), books: catalog() });
   }
 
   const fmtDate = (iso) => {
     const d = new Date(iso);
     return isNaN(d) ? "" : d.toLocaleDateString("uk-UA", { day: "numeric", month: "long" });
   };
+
+  const lastName = () => (typeof UAL !== "undefined" ? UAL.lastName() : "");
 
   return { demo, state, take, giveBack, fmtDate, lastName };
 })();

@@ -3,9 +3,22 @@
 
 const SHEET_LOG = "Журнал";
 const SHEET_STATUS = "Стан книжок";
-const SHEET_STUDENTS = "Студенти"; // необов'язковий: якщо аркуша немає, береться список нижче
+const SHEET_STUDENTS = "Студенти";
+const SHEET_EVENTS = "Логи";
+const SHEET_BLOCK = "Блокування";
 const TAKEN = "Взято";
 const RETURNED = "Повернено";
+const PHONE = "Телефон";
+const LAPTOP = "Ноутбук";
+
+// false — попередити й дозволити підтвердити (з позначкою в журналі);
+// true — взагалі не дозволяти брати книжку на чуже ім'я.
+const STRICT = false;
+const MAX_EVENTS = 5000; // скільки останніх рядків тримати в «Логах»
+
+// Колонки аркуша «Студенти»
+const C_NAME = 1, C_PHONE = 2, C_LAPTOP = 3, C_TRIES = 4, C_TRIED_ON = 5, C_LAST = 6, C_RESET = 7, C_BLOCKED = 8;
+const STUDENT_HEADERS = ["Студент", "Телефон", "Ноутбук", "Брав(ла) на чужі імена", "На це ім'я пробували", "Остання спроба", "Скинути пристрої", "Заблоковано"];
 
 const STUDENTS = [
   "Білик Анастасія", "Будзан Олександр", "Буняк Вікторія", "Вусик Євгенія", "Габрикевич Ангеліна",
@@ -18,10 +31,14 @@ const STUDENTS = [
   "Шевченко Владислава", "Шило Кіра", "Ящук Анастасія",
 ];
 
-// Запусти після вставлення коду: створює/оновлює аркуші, шапки і спадні списки.
+// ============================================================================
+// Налаштування таблиці. Запусти після вставлення коду. Власне оформлення не чіпає:
+// додає лише те, чого ще немає.
+// ============================================================================
 function setup() {
   const ss = SpreadsheetApp.getActive();
 
+  // Журнал
   let log = ss.getSheetByName(SHEET_LOG);
   if (!log) {
     log = ss.insertSheet(SHEET_LOG, 0);
@@ -30,22 +47,54 @@ function setup() {
     log.setFrozenRows(1);
     log.getRange("A2:A").setNumberFormat("dd.MM.yyyy HH:mm");
   }
-  // колонки для журналу пристроїв (додаються праворуч, наявне оформлення не чіпаємо)
-  const extra = ["Пристрій", "Браузер", "Попередження"];
-  extra.forEach((h, i) => {
+  ["Пристрій", "Браузер", "Попередження"].forEach((h, i) => {
     const cell = log.getRange(1, 6 + i);
     if (!String(cell.getValue()).trim()) cell.setValue(h).setFontWeight("bold");
   });
-  applyValidation_();
 
+  // Студенти — реєстр пристроїв
+  let st = ss.getSheetByName(SHEET_STUDENTS);
+  if (!st) {
+    st = ss.insertSheet(SHEET_STUDENTS);
+    st.getRange(2, 1, STUDENTS.length, 1).setValues(STUDENTS.map((n) => [n]));
+  }
+  STUDENT_HEADERS.forEach((h, i) => {
+    const cell = st.getRange(1, i + 1);
+    if (!String(cell.getValue()).trim()) cell.setValue(h).setFontWeight("bold");
+  });
+  st.setFrozenRows(1);
+  const n = Math.max(st.getLastRow() - 1, 1);
+  if (!st.getRange(2, C_RESET).getDataValidation()) st.getRange(2, C_RESET, n, 1).insertCheckboxes();
+  if (!st.getRange(2, C_BLOCKED).getDataValidation()) st.getRange(2, C_BLOCKED, n, 1).insertCheckboxes();
+
+  // Логи
+  if (!ss.getSheetByName(SHEET_EVENTS)) {
+    const ev = ss.insertSheet(SHEET_EVENTS);
+    ev.appendRow(["Час", "Подія", "Сторінка / книжка", "Студент", "Пристрій", "Тип пристрою", "Деталі"]);
+    ev.getRange(1, 1, 1, 7).setFontWeight("bold");
+    ev.setFrozenRows(1);
+    ev.getRange("A2:A").setNumberFormat("dd.MM.yyyy HH:mm:ss");
+    ev.setColumnWidth(3, 260);
+    ev.setColumnWidth(7, 380);
+  }
+
+  // Блокування пристроїв
+  if (!ss.getSheetByName(SHEET_BLOCK)) {
+    const bl = ss.insertSheet(SHEET_BLOCK);
+    bl.appendRow(["Пристрій", "Причина", "Коли"]);
+    bl.getRange(1, 1, 1, 3).setFontWeight("bold");
+    bl.setFrozenRows(1);
+  }
+
+  applyValidation_();
+  bindFromHistory_();
   writeStatus_(loans_());
 
   const blank = ss.getSheetByName("Аркуш1") || ss.getSheetByName("Sheet1");
   if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 2) ss.deleteSheet(blank);
 }
 
-// Спадні списки в журналі ставляться лише там, де їх ще немає,
-// щоб не стерти власне оформлення (кольори «Взято» / «Повернено» тощо)
+// Спадні списки в журналі — лише там, де їх ще немає (щоб не стерти оформлення)
 function applyValidation_() {
   const ss = SpreadsheetApp.getActive();
   const log = ss.getSheetByName(SHEET_LOG);
@@ -63,13 +112,121 @@ function applyValidation_() {
   }
 }
 
-function students_() {
+// ============================================================================
+// Реєстр студентів і пристроїв
+// ============================================================================
+function registry_() {
   const st = SpreadsheetApp.getActive().getSheetByName(SHEET_STUDENTS);
-  if (!st || st.getLastRow() < 2) return STUDENTS;
-  const list = st.getRange(2, 1, st.getLastRow() - 1, 1).getValues().map((r) => String(r[0]).trim()).filter(String);
+  const byName = {}, byDevice = {}, list = [];
+  if (st && st.getLastRow() >= 2) {
+    st.getRange(2, 1, st.getLastRow() - 1, C_BLOCKED).getValues().forEach((r, i) => {
+      const name = String(r[C_NAME - 1]).trim();
+      if (!name) return;
+      const rec = {
+        row: i + 2, name,
+        phone: String(r[C_PHONE - 1]).trim(), laptop: String(r[C_LAPTOP - 1]).trim(),
+        tries: Number(r[C_TRIES - 1]) || 0, triedOn: Number(r[C_TRIED_ON - 1]) || 0,
+        blocked: r[C_BLOCKED - 1] === true,
+      };
+      byName[name] = rec;
+      list.push(name);
+      if (rec.phone) byDevice[rec.phone] = name;
+      if (rec.laptop) byDevice[rec.laptop] = name;
+    });
+  }
+  return { sheet: st, byName, byDevice, list };
+}
+
+function students_() {
+  const list = registry_().list;
   return list.length ? list : STUDENTS;
 }
 
+const slotCol_ = (type) => (type === PHONE ? C_PHONE : C_LAPTOP);
+const typeOf_ = (d) => (d.type === PHONE || d.type === LAPTOP ? d.type : /iPhone|iPad|Android/.test(String(d.ua)) ? PHONE : LAPTOP);
+
+// Закріплюємо пристрої за людьми за історією журналу (лише якщо слот порожній)
+function bindFromHistory_() {
+  const log = SpreadsheetApp.getActive().getSheetByName(SHEET_LOG);
+  const reg = registry_();
+  if (!reg.sheet || !log || log.getLastRow() < 2 || log.getLastColumn() < 7) return;
+  const counts = {};
+  log.getRange(2, 1, log.getLastRow() - 1, 7).getValues().forEach((r) => {
+    const name = String(r[3]).trim(), dev = String(r[5]).trim();
+    if (r[4] !== TAKEN || !name || !dev) return;
+    const k = name + "|" + typeOf_({ ua: r[6] });
+    (counts[k] = counts[k] || {})[dev] = (counts[k][dev] || 0) + 1;
+  });
+  Object.keys(counts).forEach((k) => {
+    const [name, type] = k.split("|");
+    const rec = reg.byName[name];
+    if (!rec || rec[type === PHONE ? "phone" : "laptop"]) return;
+    const dev = Object.keys(counts[k]).sort((a, b) => counts[k][b] - counts[k][a]).find((x) => !reg.byDevice[x]);
+    if (!dev) return;
+    reg.sheet.getRange(rec.row, slotCol_(type)).setValue(dev);
+    reg.byDevice[dev] = name;
+    logEvent_("Прив'язка пристрою", "", name, dev, type, "з історії журналу");
+  });
+}
+
+function isBlockedDevice_(dev) {
+  const bl = SpreadsheetApp.getActive().getSheetByName(SHEET_BLOCK);
+  if (!dev || !bl || bl.getLastRow() < 2) return false;
+  return bl.getRange(2, 1, bl.getLastRow() - 1, 1).getValues().some((r) => String(r[0]).trim() === dev);
+}
+
+// Перевірка «той самий пристрій — та сама людина». Повертає попередження і, якщо можна, слот для прив'язки.
+function checkDevice_(reg, dev, type, name) {
+  if (!dev) return { warn: "", owner: "" };
+  const owner = reg.byDevice[dev] || "";
+  if (owner && owner !== name) {
+    return { warn: "Цей пристрій закріплений за «" + owner + "». Ти точно " + name + "?", owner };
+  }
+  if (!owner) {
+    const rec = reg.byName[name];
+    const slot = rec ? rec[type === PHONE ? "phone" : "laptop"] : "";
+    if (slot && slot !== dev) {
+      return {
+        warn: "За «" + name + "» закріплений інший " + type.toLowerCase() + ". Якщо це твій новий пристрій — попроси адміністратора скинути прив'язку.",
+        owner: "",
+      };
+    }
+    if (rec && !slot) return { warn: "", owner: "", bind: { row: rec.row, col: slotCol_(type) } };
+  }
+  return { warn: "", owner };
+}
+
+// Лічильники спроб у «Студентах»
+function recordAttempt_(reg, owner, target, status, increment) {
+  if (!reg.sheet) return;
+  const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd.MM HH:mm");
+  const o = owner && reg.byName[owner];
+  if (o) {
+    if (increment) reg.sheet.getRange(o.row, C_TRIES).setValue(o.tries + 1);
+    reg.sheet.getRange(o.row, C_LAST).setValue("брав(ла) на «" + target + "» · " + stamp + " · " + status);
+  }
+  const t = reg.byName[target];
+  if (t) {
+    if (increment) reg.sheet.getRange(t.row, C_TRIED_ON).setValue(t.triedOn + 1);
+    reg.sheet.getRange(t.row, C_LAST).setValue(
+      (owner ? "на це ім'я брав(ла) «" + owner + "»" : "на це ім'я брали з чужого пристрою") + " · " + stamp + " · " + status);
+  }
+}
+
+// ============================================================================
+// Логи по сайту
+// ============================================================================
+function logEvent_(event, page, name, dev, type, details) {
+  const ev = SpreadsheetApp.getActive().getSheetByName(SHEET_EVENTS);
+  if (!ev) return;
+  ev.appendRow([new Date(), event, String(page || "").slice(0, 200), name || "", dev || "", type || "", String(details || "").slice(0, 300)]);
+  const extra = ev.getLastRow() - 1 - MAX_EVENTS;
+  if (extra > 50) ev.deleteRows(2, extra);
+}
+
+// ============================================================================
+// Стан книжок
+// ============================================================================
 // Поточний стан: для кожної книжки — останній запис «Взято» без «Повернено» після нього.
 function loans_() {
   const log = SpreadsheetApp.getActive().getSheetByName(SHEET_LOG);
@@ -84,42 +241,6 @@ function loans_() {
   return loans;
 }
 
-// Хто з якого пристрою зазвичай бере книжки (за записами «Взято»)
-function history_() {
-  const log = SpreadsheetApp.getActive().getSheetByName(SHEET_LOG);
-  const byDevice = {}, byName = {};
-  if (!log || log.getLastRow() < 2 || log.getLastColumn() < 6) return { byDevice, byName };
-  log.getRange(2, 1, log.getLastRow() - 1, 6).getValues().forEach((r) => {
-    const name = String(r[3]).trim(), act = r[4], dev = String(r[5]).trim();
-    if (act !== TAKEN || !name || !dev) return;
-    (byDevice[dev] = byDevice[dev] || {})[name] = (byDevice[dev][name] || 0) + 1;
-    (byName[name] = byName[name] || {})[dev] = (byName[name][dev] || 0) + 1;
-  });
-  return { byDevice, byName };
-}
-
-function usual_(counts) {
-  let best = "", n = 0;
-  Object.keys(counts || {}).forEach((k) => { if (counts[k] > n) { best = k; n = counts[k]; } });
-  return best;
-}
-
-// Попередження, якщо ім'я і пристрій «не збігаються» з історією
-function warning_(dev, name) {
-  if (!dev) return "";
-  const h = history_();
-  const devNames = h.byDevice[dev] || {};
-  const nameDevs = h.byName[name] || {};
-  const usualName = usual_(devNames);
-  if (usualName && !devNames[name]) {
-    return "З цього пристрою зазвичай беруть книжки на ім'я «" + usualName + "». Ти точно " + name + "?";
-  }
-  if (Object.keys(nameDevs).length && !nameDevs[dev]) {
-    return "На ім'я «" + name + "» зазвичай беруть книжки з іншого пристрою. Це точно ти?";
-  }
-  return "";
-}
-
 // Каталог книжок, який надсилає сайт (зберігається у властивостях скрипта)
 function catalog_() {
   try { return JSON.parse(PropertiesService.getScriptProperties().getProperty("books") || "[]"); } catch (e) { return []; }
@@ -132,9 +253,7 @@ function saveCatalog_(books) {
   PropertiesService.getScriptProperties().setProperty("books", JSON.stringify(clean));
 }
 
-// Аркуш «Стан книжок»: усі книжки каталогу, статус і в кого зараз.
-// Оформлення задається лише при створенні аркуша; далі оновлюються тільки значення,
-// тож власні стилі в таблиці не зникають.
+// Аркуш «Стан книжок». Оформлення — лише при створенні; далі оновлюються тільки значення.
 function writeStatus_(loans) {
   const ss = SpreadsheetApp.getActive();
   let sh = ss.getSheetByName(SHEET_STATUS);
@@ -142,15 +261,12 @@ function writeStatus_(loans) {
   const books = catalog_();
   const known = {};
   books.forEach((b) => { known[b.id] = true; });
-  // книжки, які є в журналі, але ще не потрапили в каталог
   Object.keys(loans).forEach((id) => { if (!known[id]) books.push({ id, title: id, author: "" }); });
   books.sort((a, b) => a.title.localeCompare(b.title, "uk"));
-
   const rows = books.map((b) => {
     const l = loans[b.id];
     return [b.title, b.author, l ? "На руках" : "Вільна", l ? l.name : "", l && l.date ? new Date(l.date) : ""];
   });
-
   sh.getRange(1, 1, 1, 5).setValues([["Книжка", "Автор", "Статус", "У кого", "З якого числа"]]);
   const last = sh.getLastRow();
   if (last > 1) sh.getRange(2, 1, last - 1, 5).clearContent();
@@ -175,11 +291,30 @@ function createStatusSheet_(ss) {
   return sh;
 }
 
-// Якщо журнал правлять вручну — стан книжок оновлюється сам
+// ============================================================================
+// Ручні правки в таблиці
+// ============================================================================
 function onEdit(e) {
-  if (e && e.range && e.range.getSheet().getName() === SHEET_LOG) writeStatus_(loans_());
+  if (!e || !e.range) return;
+  const sh = e.range.getSheet();
+  const name = sh.getName();
+  if (name === SHEET_LOG) writeStatus_(loans_());
+  // Галочка «Скинути пристрої» — стираємо прив'язку і знімаємо галочку
+  if (name === SHEET_STUDENTS && e.range.getColumn() <= C_RESET && e.range.getLastColumn() >= C_RESET) {
+    for (let r = Math.max(e.range.getRow(), 2); r <= e.range.getLastRow(); r++) {
+      const box = sh.getRange(r, C_RESET);
+      if (box.getValue() === true) {
+        sh.getRange(r, C_PHONE, 1, 2).clearContent();
+        box.setValue(false);
+        logEvent_("Скидання пристроїв", "", sh.getRange(r, C_NAME).getValue(), "", "", "адміністратор скинув прив'язку");
+      }
+    }
+  }
 }
 
+// ============================================================================
+// Веб-застосунок
+// ============================================================================
 function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -189,10 +324,21 @@ function doGet() {
 }
 
 function doPost(e) {
+  let d = {};
+  try { d = JSON.parse(e.postData.contents || "{}"); } catch (err) { return json_({ ok: false, error: "Некоректний запит" }); }
+  const dev = String(d.device || "").replace(/[^a-z0-9]/gi, "").slice(0, 24);
+  const ua = String(d.ua || "").slice(0, 60);
+  const type = typeOf_(d);
+
+  // Перегляд сторінки — просто записуємо в логи
+  if (d.action === "view") {
+    logEvent_("Перегляд", d.page, "", dev, type, String(d.title || "") + (ua ? " · " + ua : ""));
+    return json_({ ok: true });
+  }
+
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    const d = JSON.parse(e.postData.contents || "{}");
     if (d.books) saveCatalog_(d.books);
     const log = SpreadsheetApp.getActive().getSheetByName(SHEET_LOG);
     const loans = loans_();
@@ -206,17 +352,46 @@ function doPost(e) {
     const title = String(d.title || "").slice(0, 200);
     if (!id || !log) return json_({ ok: false, error: "Не вказано книжку", loans });
 
-    const dev = String(d.device || "").replace(/[^a-z0-9]/gi, "").slice(0, 24);
-    const ua = String(d.ua || "").slice(0, 60);
-
     if (d.action === "take") {
       const name = String(d.name || "").trim();
-      if (students_().indexOf(name) < 0) return json_({ ok: false, error: "Такого студента немає в списку", loans });
+      const reg = registry_();
+      const known = reg.list.length ? reg.list : STUDENTS;
+      if (known.indexOf(name) < 0) return json_({ ok: false, error: "Такого студента немає в списку", loans });
       if (loans[id]) return json_({ ok: false, error: "Книжку вже взяли: " + loans[id].name, loans });
-      const warn = warning_(dev, name);
-      if (warn && !d.confirm) return json_({ ok: false, needConfirm: true, warning: warn, loans });
+
+      if (isBlockedDevice_(dev)) {
+        logEvent_("Відмова", title, name, dev, type, "пристрій у списку блокування");
+        return json_({ ok: false, error: "З цього пристрою брати книжки заборонено. Звернись до адміністратора.", loans });
+      }
+      const owner = reg.byDevice[dev];
+      if ((reg.byName[name] && reg.byName[name].blocked) || (owner && reg.byName[owner] && reg.byName[owner].blocked)) {
+        logEvent_("Відмова", title, name, dev, type, "студента заблоковано");
+        return json_({ ok: false, error: "Брати книжки зараз заборонено. Звернись до адміністратора.", loans });
+      }
+
+      const chk = checkDevice_(reg, dev, type, name);
+      if (chk.warn) {
+        if (STRICT) {
+          recordAttempt_(reg, chk.owner, name, "заблоковано", true);
+          logEvent_("Відмова", title, name, dev, type, chk.warn);
+          return json_({ ok: false, error: chk.warn, loans });
+        }
+        if (!d.confirm) {
+          recordAttempt_(reg, chk.owner, name, "попередження", true);
+          logEvent_("Попередження", title, name, dev, type, chk.warn);
+          return json_({ ok: false, needConfirm: true, warning: chk.warn, loans });
+        }
+        recordAttempt_(reg, chk.owner, name, "підтверджено", false);
+        logEvent_("Підтверджено", title, name, dev, type, chk.warn);
+      }
+
       const now = new Date();
-      log.appendRow([now, id, title, name, TAKEN, dev, ua, warn ? "⚠️ Підтверджено: " + warn : ""]);
+      log.appendRow([now, id, title, name, TAKEN, dev, ua, chk.warn ? "⚠️ Підтверджено: " + chk.warn : ""]);
+      if (chk.bind) {
+        reg.sheet.getRange(chk.bind.row, chk.bind.col).setValue(dev);
+        logEvent_("Прив'язка пристрою", title, name, dev, type, "перше взяття з цього пристрою");
+      }
+      logEvent_("Взяття", title, name, dev, type, "");
       loans[id] = { name, date: now.toISOString() };
       writeStatus_(loans);
       return json_({ ok: true, loans });
@@ -225,6 +400,7 @@ function doPost(e) {
     if (d.action === "return") {
       if (!loans[id]) return json_({ ok: false, error: "Цю книжку ніхто не брав", loans });
       log.appendRow([new Date(), id, title, loans[id].name, RETURNED, dev, ua, ""]);
+      logEvent_("Повернення", title, loans[id].name, dev, type, "");
       delete loans[id];
       writeStatus_(loans);
       return json_({ ok: true, loans });
@@ -232,6 +408,7 @@ function doPost(e) {
 
     return json_({ ok: false, error: "Невідома дія", loans });
   } catch (err) {
+    try { logEvent_("Помилка", d.title, d.name, dev, type, err.message); } catch (e2) {}
     return json_({ ok: false, error: "Помилка журналу: " + err.message });
   } finally {
     lock.releaseLock();

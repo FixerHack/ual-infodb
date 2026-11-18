@@ -146,4 +146,6 @@ window.UAL_SECTIONS = SECTIONS;
       <span class="footer-note">Неофіційний студентський сайт осередку, не є офіційним ресурсом УАЛ</span>
     </div>`;
   document.body.appendChild(footer);
+
+  if (typeof UAL !== "undefined") UAL.logView();
 })();
