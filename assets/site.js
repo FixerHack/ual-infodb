@@ -2,7 +2,7 @@
 // Щоб додати сторінку — додай її в SECTIONS (у наявний розділ або новий).
 // hidden: true — сторінка належить розділу, але не показується в підменю.
 const SECTIONS = [
-  { title: "Головна", home: true, pages: [{ href: "index.html", title: "Головна" }, { href: "pro-sait.html", title: "Про сайт", hidden: true }] },
+  { title: "Головна", home: true, pages: [{ href: "index.html", title: "Головна" }] },
   {
     title: "Таймлайн", icon: "📅", accent: "#f7aa3a",
     desc: "Модулі року, вишколи, канікули, розклад англійської та спорядження",
@@ -143,7 +143,7 @@ window.UAL_SECTIONS = SECTIONS;
   footer.innerHTML = `
     <div class="wrap">
       <a href="index.html"><b>УАЛ</b> · осередок Львів</a>
-      <span class="footer-note">Неофіційний студентський сайт осередку, не є офіційним ресурсом УАЛ · <a href="pro-sait.html">Про сайт</a></span>
+      <span class="footer-note">Неофіційний студентський сайт осередку, не є офіційним ресурсом УАЛ</span>
     </div>`;
   document.body.appendChild(footer);
 })();
