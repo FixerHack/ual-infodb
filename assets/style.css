@@ -872,3 +872,6 @@ button.chip { cursor: pointer; font: inherit; font-size: .88rem; font-weight: 50
 .site-footer .footer-note { max-width: 560px; }
 .site-footer .footer-note a { color: var(--violet); font-weight: 600; }
 @media (max-width: 760px) { .site-footer .wrap { flex-direction: column; } }
+.joke-card h2 { margin: 6px 0 12px; }
+.joke-card p { max-width: 760px; }
+.joke-card .joke-fine { font-size: .85rem; opacity: .75; margin: 0; }
