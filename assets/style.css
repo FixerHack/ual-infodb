@@ -867,3 +867,8 @@ button.chip { cursor: pointer; font: inherit; font-size: .88rem; font-weight: 50
 .book-card:hover .bc-cover.contain { box-shadow: none; }
 .book-card:hover .bc-cover.contain img { filter: drop-shadow(0 22px 30px rgba(0, 0, 0, .32)); }
 .bk-flip.odd img { object-fit: contain; border-radius: 6px; }
+
+/* ---------- футер: дисклеймер ---------- */
+.site-footer .footer-note { max-width: 560px; }
+.site-footer .footer-note a { color: var(--violet); font-weight: 600; }
+@media (max-width: 760px) { .site-footer .wrap { flex-direction: column; } }
