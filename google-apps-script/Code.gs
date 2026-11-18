@@ -2,7 +2,8 @@
 // Встав цей код у Google Таблицю: Розширення → Apps Script. Інструкція — у README.md поруч.
 
 const SHEET_LOG = "Журнал";
-const SHEET_STUDENTS = "Студенти";
+const SHEET_STATUS = "Стан книжок";
+const SHEET_STUDENTS = "Студенти"; // необов'язковий: якщо аркуша немає, береться список нижче
 const TAKEN = "Взято";
 const RETURNED = "Повернено";
 
@@ -17,16 +18,9 @@ const STUDENTS = [
   "Шевченко Владислава", "Шило Кіра", "Ящук Анастасія",
 ];
 
-// Запусти один раз: створює аркуші, шапку і спадні списки.
+// Запусти після вставлення коду: створює/оновлює аркуші, шапки і спадні списки.
 function setup() {
   const ss = SpreadsheetApp.getActive();
-
-  const st = ss.getSheetByName(SHEET_STUDENTS) || ss.insertSheet(SHEET_STUDENTS);
-  if (st.getLastRow() < 2) {
-    st.getRange(1, 1).setValue("Студент").setFontWeight("bold");
-    st.getRange(2, 1, STUDENTS.length, 1).setValues(STUDENTS.map((n) => [n]));
-  }
-  st.setFrozenRows(1);
 
   const log = ss.getSheetByName(SHEET_LOG) || ss.insertSheet(SHEET_LOG, 0);
   if (log.getLastRow() < 1) {
@@ -35,21 +29,35 @@ function setup() {
   }
   log.setFrozenRows(1);
   log.getRange("A2:A").setNumberFormat("dd.MM.yyyy HH:mm");
+  applyValidation_();
 
-  // Спадний список студентів і дій прямо в журналі
-  log.getRange("D2:D").setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInRange(st.getRange("A2:A"), true).setAllowInvalid(false).build());
-  log.getRange("E2:E").setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInList([TAKEN, RETURNED], true).setAllowInvalid(false).build());
+  const st = ss.getSheetByName(SHEET_STATUS) || ss.insertSheet(SHEET_STATUS, 0);
+  st.setFrozenRows(1);
+  writeStatus_(loans_());
 
   const blank = ss.getSheetByName("Аркуш1") || ss.getSheetByName("Sheet1");
   if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 2) ss.deleteSheet(blank);
 }
 
+// Спадні списки в журналі: студенти (з аркуша «Студенти» або вбудований список) і дія
+function applyValidation_() {
+  const ss = SpreadsheetApp.getActive();
+  const log = ss.getSheetByName(SHEET_LOG);
+  if (!log) return;
+  const sheet = ss.getSheetByName(SHEET_STUDENTS);
+  const who = sheet
+    ? SpreadsheetApp.newDataValidation().requireValueInRange(sheet.getRange("A2:A"), true)
+    : SpreadsheetApp.newDataValidation().requireValueInList(STUDENTS, true);
+  log.getRange("D2:D").setDataValidation(who.setAllowInvalid(false).build());
+  log.getRange("E2:E").setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList([TAKEN, RETURNED], true).setAllowInvalid(false).build());
+}
+
 function students_() {
   const st = SpreadsheetApp.getActive().getSheetByName(SHEET_STUDENTS);
   if (!st || st.getLastRow() < 2) return STUDENTS;
-  return st.getRange(2, 1, st.getLastRow() - 1, 1).getValues().map((r) => String(r[0]).trim()).filter(String);
+  const list = st.getRange(2, 1, st.getLastRow() - 1, 1).getValues().map((r) => String(r[0]).trim()).filter(String);
+  return list.length ? list : STUDENTS;
 }
 
 // Поточний стан: для кожної книжки — останній запис «Взято» без «Повернено» після нього.
@@ -66,12 +74,60 @@ function loans_() {
   return loans;
 }
 
+// Каталог книжок, який надсилає сайт (зберігається у властивостях скрипта)
+function catalog_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty("books") || "[]"); } catch (e) { return []; }
+}
+function saveCatalog_(books) {
+  if (!Array.isArray(books) || !books.length) return;
+  const clean = books.slice(0, 1000).map((b) => ({
+    id: String(b.id || "").slice(0, 100), title: String(b.title || "").slice(0, 200), author: String(b.author || "").slice(0, 200),
+  })).filter((b) => b.id);
+  PropertiesService.getScriptProperties().setProperty("books", JSON.stringify(clean));
+}
+
+// Аркуш «Стан книжок»: усі книжки каталогу, статус і в кого зараз
+function writeStatus_(loans) {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(SHEET_STATUS) || ss.insertSheet(SHEET_STATUS, 0);
+  const books = catalog_();
+  const known = {};
+  books.forEach((b) => { known[b.id] = true; });
+  // книжки, які є в журналі, але ще не потрапили в каталог
+  Object.keys(loans).forEach((id) => { if (!known[id]) books.push({ id, title: id, author: "" }); });
+  books.sort((a, b) => a.title.localeCompare(b.title, "uk"));
+
+  const rows = books.map((b) => {
+    const l = loans[b.id];
+    return [b.title, b.author, l ? "На руках" : "Вільна", l ? l.name : "", l && l.date ? new Date(l.date) : ""];
+  });
+
+  sh.clear();
+  sh.getRange(1, 1, 1, 5).setValues([["Книжка", "Автор", "Статус", "У кого", "З якого числа"]]).setFontWeight("bold").setBackground("#eeeffd");
+  if (rows.length) {
+    sh.getRange(2, 1, rows.length, 5).setValues(rows);
+    sh.getRange(2, 5, rows.length, 1).setNumberFormat("dd.MM.yyyy");
+    rows.forEach((r, i) => {
+      sh.getRange(i + 2, 3).setBackground(r[2] === "Вільна" ? "#e2f5ea" : "#fde8ec").setFontColor(r[2] === "Вільна" ? "#1f8a5a" : "#c4465d").setFontWeight("bold");
+    });
+  }
+  sh.setFrozenRows(1);
+  sh.setColumnWidth(1, 380);
+  sh.setColumnWidth(2, 220);
+  sh.setColumnWidths(3, 3, 150);
+}
+
+// Якщо журнал правлять вручну — стан книжок оновлюється сам
+function onEdit(e) {
+  if (e && e.range && e.range.getSheet().getName() === SHEET_LOG) writeStatus_(loans_());
+}
+
 function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doGet() {
-  return json_({ ok: true, loans: loans_(), students: students_() });
+  return json_({ ok: true, loans: loans_(), students: students_(), catalog: catalog_().map((b) => b.id).sort().join(",") });
 }
 
 function doPost(e) {
@@ -79,10 +135,17 @@ function doPost(e) {
   lock.waitLock(10000);
   try {
     const d = JSON.parse(e.postData.contents || "{}");
-    const id = String(d.bookId || "").trim();
-    const title = String(d.title || "").slice(0, 200);
+    if (d.books) saveCatalog_(d.books);
     const log = SpreadsheetApp.getActive().getSheetByName(SHEET_LOG);
     const loans = loans_();
+
+    if (d.action === "sync") {
+      writeStatus_(loans);
+      return json_({ ok: true, loans });
+    }
+
+    const id = String(d.bookId || "").trim();
+    const title = String(d.title || "").slice(0, 200);
     if (!id || !log) return json_({ ok: false, error: "Не вказано книжку", loans });
 
     if (d.action === "take") {
@@ -92,6 +155,7 @@ function doPost(e) {
       const now = new Date();
       log.appendRow([now, id, title, name, TAKEN]);
       loans[id] = { name, date: now.toISOString() };
+      writeStatus_(loans);
       return json_({ ok: true, loans });
     }
 
@@ -99,6 +163,7 @@ function doPost(e) {
       if (!loans[id]) return json_({ ok: false, error: "Цю книжку ніхто не брав", loans });
       log.appendRow([new Date(), id, title, loans[id].name, RETURNED]);
       delete loans[id];
+      writeStatus_(loans);
       return json_({ ok: true, loans });
     }
 

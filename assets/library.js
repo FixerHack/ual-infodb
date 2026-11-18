@@ -26,10 +26,18 @@ const Library = (() => {
     } finally { clearTimeout(t); }
   }
 
+  // Каталог для аркуша «Стан книжок» у таблиці
+  const catalog = () => (typeof BOOKS === "undefined" ? [] : BOOKS.map((b) => ({
+    id: b.id, title: b.title, author: (typeof AUTHORS !== "undefined" && AUTHORS[b.authorId]?.name) || "",
+  })));
+
   async function state() {
     if (demo) return { ok: true, loans: readDemo(), students: STUDENTS };
     const r = await call();
     if (r.ok && !(r.students && r.students.length)) r.students = STUDENTS;
+    // якщо в таблиці застарілий список книжок — оновлюємо його (раз, без участі користувача)
+    const ids = catalog().map((b) => b.id).sort().join(",");
+    if (r.ok && typeof r.catalog === "string" && ids && r.catalog !== ids) call({ action: "sync", books: catalog() });
     return r;
   }
 
@@ -41,7 +49,7 @@ const Library = (() => {
       writeDemo(l);
       return { ok: true, loans: l };
     }
-    return call({ action: "take", bookId: book.id, title: book.title, name });
+    return call({ action: "take", bookId: book.id, title: book.title, name, books: catalog() });
   }
 
   async function giveBack(book) {
@@ -51,7 +59,7 @@ const Library = (() => {
       writeDemo(l);
       return { ok: true, loans: l };
     }
-    return call({ action: "return", bookId: book.id, title: book.title });
+    return call({ action: "return", bookId: book.id, title: book.title, books: catalog() });
   }
 
   const fmtDate = (iso) => {
