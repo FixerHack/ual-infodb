@@ -3,7 +3,7 @@
 // (код і інструкція — у папці google-apps-script/).
 // Встав сюди адресу веб-застосунку (закінчується на /exec). Поки порожньо — працює демо-режим
 // і позначки зберігаються лише в цьому браузері.
-const LIBRARY_API_URL = "";
+const LIBRARY_API_URL = "https://script.google.com/macros/s/AKfycbzsEvrB_eoq8d1ABNl3M9M3WNXznP-2vhiNuFHJfIkXLa4m-QPLrCqORxDKFRwOMYE/exec";
 
 const Library = (() => {
   const DEMO_KEY = "ual-library-demo-v1";
