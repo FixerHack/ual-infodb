@@ -30,6 +30,12 @@ function setup() {
     log.setFrozenRows(1);
     log.getRange("A2:A").setNumberFormat("dd.MM.yyyy HH:mm");
   }
+  // колонки для журналу пристроїв (додаються праворуч, наявне оформлення не чіпаємо)
+  const extra = ["Пристрій", "Браузер", "Попередження"];
+  extra.forEach((h, i) => {
+    const cell = log.getRange(1, 6 + i);
+    if (!String(cell.getValue()).trim()) cell.setValue(h).setFontWeight("bold");
+  });
   applyValidation_();
 
   writeStatus_(loans_());
@@ -76,6 +82,42 @@ function loans_() {
     else if (act === RETURNED) delete loans[id];
   });
   return loans;
+}
+
+// Хто з якого пристрою зазвичай бере книжки (за записами «Взято»)
+function history_() {
+  const log = SpreadsheetApp.getActive().getSheetByName(SHEET_LOG);
+  const byDevice = {}, byName = {};
+  if (!log || log.getLastRow() < 2 || log.getLastColumn() < 6) return { byDevice, byName };
+  log.getRange(2, 1, log.getLastRow() - 1, 6).getValues().forEach((r) => {
+    const name = String(r[3]).trim(), act = r[4], dev = String(r[5]).trim();
+    if (act !== TAKEN || !name || !dev) return;
+    (byDevice[dev] = byDevice[dev] || {})[name] = (byDevice[dev][name] || 0) + 1;
+    (byName[name] = byName[name] || {})[dev] = (byName[name][dev] || 0) + 1;
+  });
+  return { byDevice, byName };
+}
+
+function usual_(counts) {
+  let best = "", n = 0;
+  Object.keys(counts || {}).forEach((k) => { if (counts[k] > n) { best = k; n = counts[k]; } });
+  return best;
+}
+
+// Попередження, якщо ім'я і пристрій «не збігаються» з історією
+function warning_(dev, name) {
+  if (!dev) return "";
+  const h = history_();
+  const devNames = h.byDevice[dev] || {};
+  const nameDevs = h.byName[name] || {};
+  const usualName = usual_(devNames);
+  if (usualName && !devNames[name]) {
+    return "З цього пристрою зазвичай беруть книжки на ім'я «" + usualName + "». Ти точно " + name + "?";
+  }
+  if (Object.keys(nameDevs).length && !nameDevs[dev]) {
+    return "На ім'я «" + name + "» зазвичай беруть книжки з іншого пристрою. Це точно ти?";
+  }
+  return "";
 }
 
 // Каталог книжок, який надсилає сайт (зберігається у властивостях скрипта)
@@ -164,12 +206,17 @@ function doPost(e) {
     const title = String(d.title || "").slice(0, 200);
     if (!id || !log) return json_({ ok: false, error: "Не вказано книжку", loans });
 
+    const dev = String(d.device || "").replace(/[^a-z0-9]/gi, "").slice(0, 24);
+    const ua = String(d.ua || "").slice(0, 60);
+
     if (d.action === "take") {
       const name = String(d.name || "").trim();
       if (students_().indexOf(name) < 0) return json_({ ok: false, error: "Такого студента немає в списку", loans });
       if (loans[id]) return json_({ ok: false, error: "Книжку вже взяли: " + loans[id].name, loans });
+      const warn = warning_(dev, name);
+      if (warn && !d.confirm) return json_({ ok: false, needConfirm: true, warning: warn, loans });
       const now = new Date();
-      log.appendRow([now, id, title, name, TAKEN]);
+      log.appendRow([now, id, title, name, TAKEN, dev, ua, warn ? "⚠️ Підтверджено: " + warn : ""]);
       loans[id] = { name, date: now.toISOString() };
       writeStatus_(loans);
       return json_({ ok: true, loans });
@@ -177,7 +224,7 @@ function doPost(e) {
 
     if (d.action === "return") {
       if (!loans[id]) return json_({ ok: false, error: "Цю книжку ніхто не брав", loans });
-      log.appendRow([new Date(), id, title, loans[id].name, RETURNED]);
+      log.appendRow([new Date(), id, title, loans[id].name, RETURNED, dev, ua, ""]);
       delete loans[id];
       writeStatus_(loans);
       return json_({ ok: true, loans });

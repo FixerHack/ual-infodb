@@ -26,6 +26,32 @@ const Library = (() => {
     } finally { clearTimeout(t); }
   }
 
+  // Випадковий код цього пристрою (живе лише в цьому браузері; IP не використовуємо)
+  const device = (() => {
+    try {
+      let id = localStorage.getItem("ual-device-id");
+      if (!id) {
+        id = Array.from(crypto.getRandomValues(new Uint8Array(6)), (x) => (x % 36).toString(36)).join("") + Date.now().toString(36).slice(-2);
+        localStorage.setItem("ual-device-id", id);
+      }
+      return id;
+    } catch (e) { return ""; }
+  })();
+
+  // Коротка назва пристрою для журналу: «iPhone · Safari»
+  const uaLabel = (() => {
+    const u = navigator.userAgent;
+    const os = /iPhone/.test(u) ? "iPhone" : /iPad/.test(u) ? "iPad" : /Android/.test(u) ? "Android"
+      : /Mac OS X/.test(u) ? "Mac" : /Windows/.test(u) ? "Windows" : /Linux/.test(u) ? "Linux" : "Інше";
+    const br = /Edg\//.test(u) ? "Edge" : /SamsungBrowser/.test(u) ? "Samsung" : /OPR\//.test(u) ? "Opera"
+      : /Firefox|FxiOS/.test(u) ? "Firefox" : /Chrome|CriOS/.test(u) ? "Chrome" : /Safari/.test(u) ? "Safari" : "Браузер";
+    return os + " · " + br;
+  })();
+
+  // Ім'я, яке з цього пристрою обирали минулого разу (щоб підставляти у список)
+  const lastName = () => { try { return localStorage.getItem("ual-last-name") || ""; } catch (e) { return ""; } };
+  const rememberName = (n) => { try { localStorage.setItem("ual-last-name", n); } catch (e) {} };
+
   // Каталог для аркуша «Стан книжок» у таблиці
   const catalog = () => (typeof BOOKS === "undefined" ? [] : BOOKS.map((b) => ({
     id: b.id, title: b.title, author: (typeof AUTHORS !== "undefined" && AUTHORS[b.authorId]?.name) || "",
@@ -41,7 +67,7 @@ const Library = (() => {
     return r;
   }
 
-  async function take(book, name) {
+  async function take(book, name, confirm = false) {
     if (demo) {
       const l = readDemo();
       if (l[book.id]) return { ok: false, error: "Книжку вже взяли: " + l[book.id].name, loans: l };
@@ -49,7 +75,9 @@ const Library = (() => {
       writeDemo(l);
       return { ok: true, loans: l };
     }
-    return call({ action: "take", bookId: book.id, title: book.title, name, books: catalog() });
+    const r = await call({ action: "take", bookId: book.id, title: book.title, name, confirm, device, ua: uaLabel, books: catalog() });
+    if (r.ok) rememberName(name);
+    return r;
   }
 
   async function giveBack(book) {
@@ -59,7 +87,7 @@ const Library = (() => {
       writeDemo(l);
       return { ok: true, loans: l };
     }
-    return call({ action: "return", bookId: book.id, title: book.title, books: catalog() });
+    return call({ action: "return", bookId: book.id, title: book.title, device, ua: uaLabel, books: catalog() });
   }
 
   const fmtDate = (iso) => {
@@ -67,7 +95,7 @@ const Library = (() => {
     return isNaN(d) ? "" : d.toLocaleDateString("uk-UA", { day: "numeric", month: "long" });
   };
 
-  return { demo, state, take, giveBack, fmtDate };
+  return { demo, state, take, giveBack, fmtDate, lastName };
 })();
 
 // Маленьке спливаюче повідомлення

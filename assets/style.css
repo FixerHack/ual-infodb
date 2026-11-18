@@ -872,3 +872,6 @@ button.chip { cursor: pointer; font: inherit; font-size: .88rem; font-weight: 50
 .site-footer .footer-note { max-width: 560px; }
 .site-footer .footer-note a { color: var(--violet); font-weight: 600; }
 @media (max-width: 760px) { .site-footer .wrap { flex-direction: column; } }
+
+/* попередження в модалці бібліотеки */
+.warn-box { background: var(--bad-bg); color: var(--bad); border-radius: 12px; padding: 12px 14px; font-weight: 600; margin-bottom: 8px; }
