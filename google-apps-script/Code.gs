@@ -22,35 +22,39 @@ const STUDENTS = [
 function setup() {
   const ss = SpreadsheetApp.getActive();
 
-  const log = ss.getSheetByName(SHEET_LOG) || ss.insertSheet(SHEET_LOG, 0);
-  if (log.getLastRow() < 1) {
+  let log = ss.getSheetByName(SHEET_LOG);
+  if (!log) {
+    log = ss.insertSheet(SHEET_LOG, 0);
     log.appendRow(["Дата", "ID книжки", "Назва", "Студент", "Дія"]);
     log.getRange(1, 1, 1, 5).setFontWeight("bold");
+    log.setFrozenRows(1);
+    log.getRange("A2:A").setNumberFormat("dd.MM.yyyy HH:mm");
   }
-  log.setFrozenRows(1);
-  log.getRange("A2:A").setNumberFormat("dd.MM.yyyy HH:mm");
   applyValidation_();
 
-  const st = ss.getSheetByName(SHEET_STATUS) || ss.insertSheet(SHEET_STATUS, 0);
-  st.setFrozenRows(1);
   writeStatus_(loans_());
 
   const blank = ss.getSheetByName("Аркуш1") || ss.getSheetByName("Sheet1");
   if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 2) ss.deleteSheet(blank);
 }
 
-// Спадні списки в журналі: студенти (з аркуша «Студенти» або вбудований список) і дія
+// Спадні списки в журналі ставляться лише там, де їх ще немає,
+// щоб не стерти власне оформлення (кольори «Взято» / «Повернено» тощо)
 function applyValidation_() {
   const ss = SpreadsheetApp.getActive();
   const log = ss.getSheetByName(SHEET_LOG);
   if (!log) return;
-  const sheet = ss.getSheetByName(SHEET_STUDENTS);
-  const who = sheet
-    ? SpreadsheetApp.newDataValidation().requireValueInRange(sheet.getRange("A2:A"), true)
-    : SpreadsheetApp.newDataValidation().requireValueInList(STUDENTS, true);
-  log.getRange("D2:D").setDataValidation(who.setAllowInvalid(false).build());
-  log.getRange("E2:E").setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInList([TAKEN, RETURNED], true).setAllowInvalid(false).build());
+  if (!log.getRange("D2").getDataValidation()) {
+    const sheet = ss.getSheetByName(SHEET_STUDENTS);
+    const who = sheet
+      ? SpreadsheetApp.newDataValidation().requireValueInRange(sheet.getRange("A2:A"), true)
+      : SpreadsheetApp.newDataValidation().requireValueInList(STUDENTS, true);
+    log.getRange("D2:D").setDataValidation(who.setAllowInvalid(false).build());
+  }
+  if (!log.getRange("E2").getDataValidation()) {
+    log.getRange("E2:E").setDataValidation(
+      SpreadsheetApp.newDataValidation().requireValueInList([TAKEN, RETURNED], true).setAllowInvalid(false).build());
+  }
 }
 
 function students_() {
@@ -86,10 +90,13 @@ function saveCatalog_(books) {
   PropertiesService.getScriptProperties().setProperty("books", JSON.stringify(clean));
 }
 
-// Аркуш «Стан книжок»: усі книжки каталогу, статус і в кого зараз
+// Аркуш «Стан книжок»: усі книжки каталогу, статус і в кого зараз.
+// Оформлення задається лише при створенні аркуша; далі оновлюються тільки значення,
+// тож власні стилі в таблиці не зникають.
 function writeStatus_(loans) {
   const ss = SpreadsheetApp.getActive();
-  const sh = ss.getSheetByName(SHEET_STATUS) || ss.insertSheet(SHEET_STATUS, 0);
+  let sh = ss.getSheetByName(SHEET_STATUS);
+  if (!sh) sh = createStatusSheet_(ss);
   const books = catalog_();
   const known = {};
   books.forEach((b) => { known[b.id] = true; });
@@ -102,19 +109,28 @@ function writeStatus_(loans) {
     return [b.title, b.author, l ? "На руках" : "Вільна", l ? l.name : "", l && l.date ? new Date(l.date) : ""];
   });
 
-  sh.clear();
-  sh.getRange(1, 1, 1, 5).setValues([["Книжка", "Автор", "Статус", "У кого", "З якого числа"]]).setFontWeight("bold").setBackground("#eeeffd");
+  sh.getRange(1, 1, 1, 5).setValues([["Книжка", "Автор", "Статус", "У кого", "З якого числа"]]);
+  const last = sh.getLastRow();
+  if (last > 1) sh.getRange(2, 1, last - 1, 5).clearContent();
   if (rows.length) {
     sh.getRange(2, 1, rows.length, 5).setValues(rows);
     sh.getRange(2, 5, rows.length, 1).setNumberFormat("dd.MM.yyyy");
-    rows.forEach((r, i) => {
-      sh.getRange(i + 2, 3).setBackground(r[2] === "Вільна" ? "#e2f5ea" : "#fde8ec").setFontColor(r[2] === "Вільна" ? "#1f8a5a" : "#c4465d").setFontWeight("bold");
-    });
   }
+}
+
+function createStatusSheet_(ss) {
+  const sh = ss.insertSheet(SHEET_STATUS, 0);
+  sh.getRange(1, 1, 1, 5).setFontWeight("bold");
   sh.setFrozenRows(1);
   sh.setColumnWidth(1, 380);
   sh.setColumnWidth(2, 220);
   sh.setColumnWidths(3, 3, 150);
+  const col = sh.getRange("C2:C");
+  sh.setConditionalFormatRules([
+    SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("Вільна").setBackground("#e2f5ea").setFontColor("#1f8a5a").setBold(true).setRanges([col]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("На руках").setBackground("#fde8ec").setFontColor("#c4465d").setBold(true).setRanges([col]).build(),
+  ]);
+  return sh;
 }
 
 // Якщо журнал правлять вручну — стан книжок оновлюється сам
