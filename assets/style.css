@@ -875,3 +875,14 @@ button.chip { cursor: pointer; font: inherit; font-size: .88rem; font-weight: 50
 
 /* попередження в модалці бібліотеки */
 .warn-box { background: var(--bad-bg); color: var(--bad); border-radius: 12px; padding: 12px 14px; font-weight: 600; margin-bottom: 8px; }
+
+/* ---------- екран «Доступ обмежено» ---------- */
+html.ual-blocked body > *:not(.block-screen) { display: none !important; }
+html.ual-blocked body { overflow: hidden; }
+.block-screen { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: var(--bg); }
+.block-box { max-width: 440px; text-align: center; background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 36px 28px; box-shadow: var(--shadow); }
+.block-ico { font-size: 3rem; margin-bottom: 8px; }
+.block-box h1 { font-size: clamp(1.6rem, 6vw, 2.2rem); margin-bottom: 10px; }
+.block-box p { color: var(--muted); }
+.block-note { font-size: .9rem; margin: 0; }
+.block-note b { color: var(--ink); font-family: ui-monospace, Menlo, monospace; }

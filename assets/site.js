@@ -147,5 +147,5 @@ window.UAL_SECTIONS = SECTIONS;
     </div>`;
   document.body.appendChild(footer);
 
-  if (typeof UAL !== "undefined") UAL.logView();
+  if (typeof UAL !== "undefined") { UAL.checkBlock(); UAL.logView(); }
 })();

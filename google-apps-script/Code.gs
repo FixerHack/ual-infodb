@@ -10,6 +10,8 @@ const TAKEN = "Взято";
 const RETURNED = "Повернено";
 const PHONE = "Телефон";
 const LAPTOP = "Ноутбук";
+const BLOCK_SITE = "Увесь сайт";
+const BLOCK_BOOKS = "Лише книжки";
 
 // false — попередити й дозволити підтвердити (з позначкою в журналі);
 // true — взагалі не дозволяти брати книжку на чуже ім'я.
@@ -79,12 +81,19 @@ function setup() {
   }
 
   // Блокування пристроїв
-  if (!ss.getSheetByName(SHEET_BLOCK)) {
-    const bl = ss.insertSheet(SHEET_BLOCK);
+  let bl = ss.getSheetByName(SHEET_BLOCK);
+  if (!bl) {
+    bl = ss.insertSheet(SHEET_BLOCK);
     bl.appendRow(["Пристрій", "Причина", "Коли"]);
     bl.getRange(1, 1, 1, 3).setFontWeight("bold");
     bl.setFrozenRows(1);
   }
+  if (!String(bl.getRange(1, 4).getValue()).trim()) bl.getRange(1, 4).setValue("Що блокувати").setFontWeight("bold");
+  if (!bl.getRange(2, 4).getDataValidation()) {
+    bl.getRange("D2:D").setDataValidation(
+      SpreadsheetApp.newDataValidation().requireValueInList([BLOCK_SITE, BLOCK_BOOKS], true).setAllowInvalid(false).build());
+  }
+  bl.getRange("C2:C").setNumberFormat("dd.MM.yyyy HH:mm");
 
   applyValidation_();
   bindFromHistory_();
@@ -169,11 +178,19 @@ function bindFromHistory_() {
   });
 }
 
-function isBlockedDevice_(dev) {
+// Що заблоковано для пристрою: "" — нічого, BLOCK_SITE — увесь сайт, BLOCK_BOOKS — лише взяття книжок
+function blockOf_(dev) {
   const bl = SpreadsheetApp.getActive().getSheetByName(SHEET_BLOCK);
-  if (!dev || !bl || bl.getLastRow() < 2) return false;
-  return bl.getRange(2, 1, bl.getLastRow() - 1, 1).getValues().some((r) => String(r[0]).trim() === dev);
+  if (!dev || !bl || bl.getLastRow() < 2) return "";
+  let res = "";
+  bl.getRange(2, 1, bl.getLastRow() - 1, 4).getValues().forEach((r) => {
+    if (String(r[0]).trim() !== dev) return;
+    const kind = String(r[3]).trim() === BLOCK_BOOKS ? BLOCK_BOOKS : BLOCK_SITE;
+    if (kind === BLOCK_SITE || !res) res = kind;
+  });
+  return res;
 }
+const isBlockedDevice_ = (dev) => !!blockOf_(dev);
 
 // Перевірка «той самий пристрій — та сама людина». Повертає попередження і, якщо можна, слот для прив'язки.
 function checkDevice_(reg, dev, type, name) {
@@ -299,6 +316,14 @@ function onEdit(e) {
   const sh = e.range.getSheet();
   const name = sh.getName();
   if (name === SHEET_LOG) writeStatus_(loans_());
+  // Новий рядок у «Блокуванні»: ставимо дату й тип, якщо порожні
+  if (name === SHEET_BLOCK && e.range.getColumn() === 1) {
+    for (let r = Math.max(e.range.getRow(), 2); r <= e.range.getLastRow(); r++) {
+      if (!String(sh.getRange(r, 1).getValue()).trim()) continue;
+      if (!sh.getRange(r, 3).getValue()) sh.getRange(r, 3).setValue(new Date());
+      if (!String(sh.getRange(r, 4).getValue()).trim()) sh.getRange(r, 4).setValue(BLOCK_SITE);
+    }
+  }
   // Галочка «Скинути пристрої» — стираємо прив'язку і знімаємо галочку
   if (name === SHEET_STUDENTS && e.range.getColumn() <= C_RESET && e.range.getLastColumn() >= C_RESET) {
     for (let r = Math.max(e.range.getRow(), 2); r <= e.range.getLastRow(); r++) {
@@ -319,7 +344,12 @@ function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
-function doGet() {
+function doGet(e) {
+  const p = (e && e.parameter) || {};
+  if (p.check) {
+    const dev = String(p.device || "").replace(/[^a-z0-9]/gi, "").slice(0, 24);
+    return json_({ ok: true, block: blockOf_(dev) === BLOCK_SITE ? "site" : blockOf_(dev) ? "books" : "" });
+  }
   return json_({ ok: true, loans: loans_(), students: students_(), catalog: catalog_().map((b) => b.id).sort().join(",") });
 }
 
@@ -332,7 +362,7 @@ function doPost(e) {
 
   // Перегляд сторінки — просто записуємо в логи
   if (d.action === "view") {
-    logEvent_("Перегляд", d.page, "", dev, type, String(d.title || "") + (ua ? " · " + ua : ""));
+    logEvent_(blockOf_(dev) === BLOCK_SITE ? "Перегляд (заблоковано)" : "Перегляд", d.page, "", dev, type, String(d.title || "") + (ua ? " · " + ua : ""));
     return json_({ ok: true });
   }
 

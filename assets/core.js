@@ -35,8 +35,38 @@ const UAL = (() => {
     try { fetch(UAL_API_URL, { method: "POST", body, mode: "no-cors", keepalive: true }); } catch (e) {}
   }
 
+  // Екран «Доступ обмежено» для пристроїв, заблокованих на весь сайт.
+  // Стан кешується на 5 хв, щоб не питати таблицю на кожній сторінці.
+  function showBlocked() {
+    if (document.getElementById("ual-blocked")) return;
+    document.documentElement.classList.add("ual-blocked");
+    const el = document.createElement("div");
+    el.id = "ual-blocked";
+    el.className = "block-screen";
+    el.innerHTML = `<div class="block-box"><div class="block-ico">🔒</div><h1>Тебе заблокував власник сайту</h1>
+      <p>…або ти просто не уалівець 🙂</p>
+      <p class="block-note">Якщо це помилка — напиши власнику сайту й назви код пристрою: <b>${device}</b></p></div>`;
+    document.body.appendChild(el);
+  }
+  function checkBlock() {
+    if (!UAL_API_URL || !device) return;
+    let cached = {};
+    try { cached = JSON.parse(get("ual-block") || "{}"); } catch (e) {}
+    if (cached.block === "site") showBlocked();
+    if (Date.now() - (cached.t || 0) < 5 * 60 * 1000) return;
+    fetch(UAL_API_URL + "?check=1&device=" + encodeURIComponent(device))
+      .then((r) => r.json())
+      .then((r) => {
+        if (!r || !r.ok) return;
+        set("ual-block", JSON.stringify({ block: r.block || "", t: Date.now() }));
+        if (r.block === "site") showBlocked();
+        else if (cached.block === "site") location.reload();
+      })
+      .catch(() => {});
+  }
+
   return {
-    device, ua, type, logView,
+    device, ua, type, logView, checkBlock,
     lastName: () => get("ual-last-name"),
     rememberName: (n) => set("ual-last-name", n),
   };
