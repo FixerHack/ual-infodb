@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=20261118">
+  <link rel="stylesheet" href="assets/style.css?v=20261120">
 </head>
 <body>
 <main>
@@ -23,7 +23,7 @@
 </div>
 
 <script src="assets/students.js?v=20261118"></script>
-<script src="assets/library-data.js?v=20261118"></script>
+<script src="assets/library-data.js?v=20261120"></script>
 <script src="assets/library.js?v=20261119"></script>
 <script>
 const id = new URLSearchParams(location.search).get("id");
@@ -42,7 +42,7 @@ if (!book) {
     <a class="back-link" href="biblioteka.html">← Усі книжки</a>
     <section class="book-hero">
       <div class="bk-cover-col">
-        <div class="bk-flip${book.back ? " can-flip" : ""}" id="flip">
+        <div class="bk-flip${book.back ? " can-flip" : ""}${book.ratio ? " odd" : ""}" id="flip"${book.ratio ? ` style="aspect-ratio:${book.ratio}"` : ""}>
           <img class="bk-front" src="${book.front}" alt="Обкладинка «${book.title}»">
           ${book.back ? `<img class="bk-back" src="${book.back}" alt="Задня обкладинка «${book.title}»">` : ""}
         </div>
@@ -58,6 +58,8 @@ if (!book) {
           ${book.publisher ? `<div><dt>Видавництво</dt><dd>${book.publisher}</dd></div>` : ""}
           ${book.year ? `<div><dt>Рік</dt><dd>${book.year}</dd></div>` : ""}
           ${book.pages ? `<div><dt>Сторінок</dt><dd>${book.pages}</dd></div>` : ""}
+          ${book.translator ? `<div><dt>Переклад</dt><dd>${book.translator}</dd></div>` : ""}
+          ${book.illustrator ? `<div><dt>Ілюстрації</dt><dd>${book.illustrator}</dd></div>` : ""}
           ${book.isbn ? `<div><dt>ISBN</dt><dd>${book.isbn}</dd></div>` : ""}
         </dl>
       </div>

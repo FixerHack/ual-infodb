@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=20261118">
+  <link rel="stylesheet" href="assets/style.css?v=20261120">
 </head>
 <body>
 <main>
@@ -27,11 +27,11 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input id="q" type="search" placeholder="Пошук за назвою або автором" autocomplete="off" enterkeyhint="search">
       </label>
-      <select id="sort" aria-label="Сортування">
+      <label class="lib-sort"><select id="sort" aria-label="Сортування">
         <option value="title">За назвою (А–Я)</option>
         <option value="author">За автором</option>
         <option value="free">Спочатку вільні</option>
-      </select>
+      </select></label>
     </section>
     <div class="chips lib-genres" id="genres"></div>
 
@@ -43,7 +43,7 @@
 </main>
 
 <script src="assets/students.js?v=20261118"></script>
-<script src="assets/library-data.js?v=20261118"></script>
+<script src="assets/library-data.js?v=20261120"></script>
 <script src="assets/library.js?v=20261119"></script>
 <script>
 let loans = {}, genre = "Усі";
@@ -74,7 +74,7 @@ function render() {
   $("shelf").innerHTML = list.map((b) => {
     const l = loans[b.id];
     return `<a class="book-card" href="knyha.html?id=${b.id}">
-      <div class="bc-cover"><img src="${b.front}" alt="Обкладинка «${b.title}»" loading="lazy"></div>
+      <div class="bc-cover${b.ratio ? " contain" : ""}"><img src="${b.front}" alt="Обкладинка «${b.title}»" loading="lazy"></div>
       <div class="bc-info">
         <span class="bc-status ${l ? "taken" : "free"}">${l ? "Зайнята · " + l.name : "Вільна"}</span>
         <h3>${b.title}</h3>
