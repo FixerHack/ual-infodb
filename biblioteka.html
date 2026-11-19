@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=20261128">
+  <link rel="stylesheet" href="assets/style.css?v=20261133">
 </head>
 <body>
 <main>
@@ -27,17 +27,46 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input id="q" type="search" placeholder="Пошук за назвою або автором" autocomplete="off" enterkeyhint="search">
       </label>
-      <label class="lib-sort"><select id="sort" aria-label="Сортування">
-        <option value="title">За назвою (А–Я)</option>
-        <option value="author">За автором</option>
-        <option value="free">Спочатку вільні</option>
-      </select></label>
+      <button class="lib-filter-btn" type="button" id="f-btn" aria-expanded="false" aria-controls="f-panel">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Фільтри<span class="f-count" id="f-count" hidden></span>
+      </button>
     </section>
-    <div class="chips lib-genres" id="genres"></div>
+
+    <div class="lib-panel" id="f-panel" hidden>
+      <div class="lp-group">
+        <div class="lp-title">Сортування</div>
+        <div class="seg" id="f-sort">
+          <button type="button" data-v="az">Від А до Я</button>
+          <button type="button" data-v="za">Від Я до А</button>
+          <button type="button" data-v="author">За автором</button>
+        </div>
+      </div>
+      <div class="lp-group">
+        <div class="lp-title">Наявність</div>
+        <div class="seg" id="f-status">
+          <button type="button" data-v="all">Усі</button>
+          <button type="button" data-v="free">Вільні</button>
+          <button type="button" data-v="taken">Зайняті</button>
+        </div>
+      </div>
+      <div class="lp-group">
+        <div class="lp-title">Автор</div>
+        <label class="lib-sort lp-select"><select id="f-author" aria-label="Автор"></select></label>
+      </div>
+      <div class="lp-group">
+        <div class="lp-title">Жанр</div>
+        <div class="chips lib-genres" id="genres"></div>
+      </div>
+      <div class="lp-actions">
+        <button class="btn ghost small" type="button" id="f-reset">Скинути все</button>
+        <button class="btn small" type="button" id="f-done">Показати <span id="f-found"></span></button>
+      </div>
+    </div>
+    <div class="chips lib-active" id="f-active"></div>
 
     <section>
       <div class="shelf" id="shelf"></div>
-      <div class="lib-empty" id="empty" hidden>Нічого не знайшлося. Спробуй іншу назву або жанр.</div>
+      <div class="lib-empty" id="empty" hidden>Нічого не знайшлося. Спробуй іншу назву або скинь фільтри.</div>
     </section>
   </div>
 </main>
@@ -48,30 +77,64 @@
 <script src="assets/library-data-2.js?v=20261132"></script>
 <script src="assets/library.js?v=20261126"></script>
 <script>
-let loans = {}, genre = "Усі";
+let loans = {};
+const F0 = { sort: "az", status: "all", genre: "Усі", author: "" };
+const F = { ...F0 };
 const $ = (id) => document.getElementById(id);
 const norm = (s) => s.toLowerCase().replace(/[ʼ'’`]/g, "");
+const aname = (b) => AUTHORS[b.authorId]?.name || "";
+const pl = (n, one, few, many) => { const a = n % 100, b = n % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; };
 const genres = ["Усі", ...new Set(BOOKS.map((b) => b.genre))].sort((a, b) => a === "Усі" ? -1 : b === "Усі" ? 1 : a.localeCompare(b, "uk"));
+const authors = [...new Set(BOOKS.map(aname).filter(Boolean))].sort((a, b) => a.localeCompare(b, "uk"));
 
 $("genres").innerHTML = genres.map((g) => `<button type="button" class="chip" data-g="${g}">${g}</button>`).join("");
-$("genres").addEventListener("click", (e) => { const b = e.target.closest("[data-g]"); if (b) { genre = b.dataset.g; render(); } });
+$("f-author").innerHTML = `<option value="">Усі автори</option>` + authors.map((a) => `<option>${a}</option>`).join("");
+
+// Панель фільтрів
+const panel = $("f-panel"), fbtn = $("f-btn");
+const toggle = (open = panel.hidden) => { panel.hidden = !open; fbtn.setAttribute("aria-expanded", open); fbtn.classList.toggle("on", open); };
+fbtn.addEventListener("click", () => toggle());
+$("f-done").addEventListener("click", () => { toggle(false); $("shelf").scrollIntoView({ behavior: "smooth", block: "start" }); });
+$("f-reset").addEventListener("click", () => { Object.assign(F, F0); render(); });
+const seg = (id, key) => $(id).addEventListener("click", (e) => { const b = e.target.closest("[data-v]"); if (b) { F[key] = b.dataset.v; render(); } });
+seg("f-sort", "sort"); seg("f-status", "status");
+$("genres").addEventListener("click", (e) => { const b = e.target.closest("[data-g]"); if (b) { F.genre = b.dataset.g; render(); } });
+$("f-author").addEventListener("change", (e) => { F.author = e.target.value; render(); });
+// Активні фільтри — чипи з хрестиком під пошуком
+$("f-active").addEventListener("click", (e) => { const b = e.target.closest("[data-k]"); if (b) { F[b.dataset.k] = F0[b.dataset.k]; render(); } });
+
 $("q").addEventListener("input", render);
 $("q").addEventListener("keydown", (e) => { if (e.key === "Enter") e.target.blur(); });
-$("sort").addEventListener("change", render);
 if (Library.demo) $("demo-note").hidden = false;
 
 function render() {
-  document.querySelectorAll("#genres .chip").forEach((c) => c.classList.toggle("chip-on", c.dataset.g === genre));
+  document.querySelectorAll("#genres .chip").forEach((c) => c.classList.toggle("chip-on", c.dataset.g === F.genre));
+  document.querySelectorAll("#f-sort [data-v]").forEach((c) => c.classList.toggle("on", c.dataset.v === F.sort));
+  document.querySelectorAll("#f-status [data-v]").forEach((c) => c.classList.toggle("on", c.dataset.v === F.status));
+  $("f-author").value = F.author;
+
   const q = norm($("q").value.trim());
-  const by = $("sort").value;
   const list = BOOKS
-    .filter((b) => genre === "Усі" || b.genre === genre)
-    .filter((b) => !q || norm(b.title).includes(q) || norm(AUTHORS[b.authorId]?.name || "").includes(q))
+    .filter((b) => F.genre === "Усі" || b.genre === F.genre)
+    .filter((b) => !F.author || aname(b) === F.author)
+    .filter((b) => F.status === "all" || (F.status === "taken") === !!loans[b.id])
+    .filter((b) => !q || norm(b.title).includes(q) || norm(aname(b)).includes(q))
     .sort((a, b) => {
-      if (by === "free" && !!loans[a.id] !== !!loans[b.id]) return loans[a.id] ? 1 : -1;
-      if (by === "author") return (AUTHORS[a.authorId]?.name || "").localeCompare(AUTHORS[b.authorId]?.name || "", "uk");
-      return a.title.localeCompare(b.title, "uk");
+      if (F.sort === "author") return (aname(a) || "яяя").localeCompare(aname(b) || "яяя", "uk") || a.title.localeCompare(b.title, "uk");
+      const c = a.title.localeCompare(b.title, "uk");
+      return F.sort === "za" ? -c : c;
     });
+
+  const active = [
+    F.genre !== F0.genre && ["genre", F.genre],
+    F.author && ["author", F.author],
+    F.status !== "all" && ["status", F.status === "free" ? "Вільні" : "Зайняті"],
+    F.sort !== "az" && ["sort", F.sort === "za" ? "Від Я до А" : "За автором"],
+  ].filter(Boolean);
+  $("f-active").innerHTML = active.map(([k, t]) => `<button type="button" class="chip chip-x" data-k="${k}">${t}<span aria-hidden="true">✕</span></button>`).join("");
+  $("f-count").hidden = !active.length;
+  $("f-count").textContent = active.length;
+  $("f-found").textContent = `${list.length} ${pl(list.length, "книжку", "книжки", "книжок")}`;
 
   $("shelf").innerHTML = list.map((b) => {
     const l = loans[b.id];
@@ -80,7 +143,7 @@ function render() {
       <div class="bc-info">
         <span class="bc-status ${l ? "taken" : "free"}">${l ? "Зайнята · " + l.name : "Вільна"}</span>
         <h3>${b.title}</h3>
-        <div class="bc-author">${AUTHORS[b.authorId]?.name || ""}</div>
+        <div class="bc-author">${aname(b)}</div>
         <div class="bc-genre">${b.genre}</div>
       </div>
     </a>`;
@@ -88,7 +151,6 @@ function render() {
   $("empty").hidden = list.length > 0;
 
   const taken = BOOKS.filter((b) => loans[b.id]).length;
-  const pl = (n, one, few, many) => { const a = n % 100, b = n % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; };
   $("lib-stats").innerHTML = `<span><b>${BOOKS.length}</b> ${pl(BOOKS.length, "книжка", "книжки", "книжок")}</span><span><b>${BOOKS.length - taken}</b> ${pl(BOOKS.length - taken, "вільна", "вільні", "вільних")}</span><span><b>${taken}</b> на руках</span>`;
 }
 
@@ -98,6 +160,6 @@ Library.state().then((r) => {
   else toast(r.error, "err");
 });
 </script>
-<script src="assets/site.js?v=20261128"></script>
+<script src="assets/site.js?v=20261133"></script>
 </body>
 </html>

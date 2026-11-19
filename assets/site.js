@@ -147,5 +147,22 @@ window.UAL_SECTIONS = SECTIONS;
     </div>`;
   document.body.appendChild(footer);
 
+  // Кнопка «Вгору» — з'являється, коли прокрутив сторінку вниз
+  const up = document.createElement("button");
+  up.type = "button";
+  up.className = "to-top";
+  up.setAttribute("aria-label", "Повернутися вгору");
+  up.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`;
+  up.addEventListener("click", () => window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }));
+  document.body.appendChild(up);
+  let ticking = false;
+  const onScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => { up.classList.toggle("show", window.scrollY > 600); ticking = false; });
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+
   if (typeof UAL !== "undefined") { UAL.checkBlock(); UAL.logView(); }
 })();

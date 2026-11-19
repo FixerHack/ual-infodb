@@ -691,7 +691,39 @@ button.chip { cursor: pointer; font: inherit; font-size: .88rem; font-weight: 50
   font: inherit; color: var(--ink); background: var(--card); border: 1.5px solid var(--line);
 }
 .lib-tools select { border-radius: 999px; padding: 0 16px; height: 50px; cursor: pointer; }
-.lib-genres { margin: 14px 0 4px; }
+.lib-genres { margin: 0; }
+.lib-filter-btn {
+  display: inline-flex; align-items: center; gap: 8px; height: 50px; padding: 0 20px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-weight: 600; color: var(--ink); background: var(--card); border: 1.5px solid var(--line); transition: border-color .15s, color .15s;
+}
+.lib-filter-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.lib-filter-btn:hover, .lib-filter-btn.on { border-color: var(--violet); color: var(--violet); }
+.f-count { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--lime); color: var(--on-bright); font-size: .78rem; display: grid; place-items: center; }
+.lib-panel {
+  margin-top: 12px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px 28px; box-shadow: var(--shadow);
+  animation: pop .18s ease-out;
+}
+.lib-panel[hidden] { display: none; }
+.lp-group:has(#genres) { grid-column: 1 / -1; }
+.lp-title { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+.seg { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 4px; gap: 4px; }
+.seg button { flex: 1; font: inherit; font-size: .9rem; font-weight: 600; color: var(--muted); background: transparent; border: 0; border-radius: 999px; padding: 9px 10px; cursor: pointer; white-space: nowrap; }
+.seg button:hover { color: var(--ink); }
+.seg button.on { background: var(--solid); color: var(--on-solid); }
+.lp-select { display: block; }
+.lp-select select { width: 100%; height: 46px; border-radius: 999px; padding: 0 40px 0 16px; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); cursor: pointer; }
+.lp-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--line); padding-top: 16px; }
+.lib-active { margin: 12px 0 4px; }
+.lib-active:empty { display: none; }
+.chip-x { cursor: pointer; display: inline-flex; align-items: center; gap: 8px; border-color: var(--violet); color: var(--violet); font: inherit; font-size: .88rem; }
+.chip-x span { font-size: .75rem; opacity: .7; }
+@media (max-width: 560px) {
+  .lib-filter-btn { flex: 1; justify-content: center; }
+  .lib-panel { padding: 16px; }
+  .seg button { font-size: .84rem; padding: 9px 6px; }
+  .lp-actions .btn { flex: 1; }
+}
 .lib-empty { text-align: center; padding: 48px 16px; color: var(--muted); }
 .demo-note { background: var(--violet-bg); color: var(--ink); border-radius: 14px; padding: 12px 16px; font-size: .9rem; margin-bottom: 16px; }
 .demo-note.small { font-size: .82rem; margin: -6px 0 16px; }
@@ -887,3 +919,18 @@ html.ual-blocked body { overflow: hidden; }
 .block-note { font-size: .9rem; margin: 16px 0 0; }
 .block-box .btn { margin-top: 6px; }
 .block-note b { color: var(--ink); font-family: ui-monospace, Menlo, monospace; }
+
+.lib-panel .lp-select { display: flex; width: 100%; }
+.lib-panel .lp-select select { width: 100%; height: 46px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; }
+
+/* ---------- кнопка «Вгору» ---------- */
+.to-top {
+  position: fixed; right: max(18px, env(safe-area-inset-right)); bottom: calc(22px + env(safe-area-inset-bottom)); z-index: 60;
+  width: 50px; height: 50px; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center;
+  background: var(--violet-strong); color: var(--lime); box-shadow: 0 10px 26px rgba(0, 0, 0, .28);
+  opacity: 0; transform: translateY(14px) scale(.9); pointer-events: none; transition: opacity .25s, transform .25s;
+}
+.to-top.show { opacity: 1; transform: none; pointer-events: auto; }
+.to-top:hover { transform: translateY(-2px); }
+.to-top svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.has-actionbar .to-top { bottom: calc(96px + env(safe-area-inset-bottom)); }
