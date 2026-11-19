@@ -934,3 +934,4 @@ html.ual-blocked body { overflow: hidden; }
 .to-top:hover { transform: translateY(-2px); }
 .to-top svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
 .has-actionbar .to-top { bottom: calc(96px + env(safe-area-inset-bottom)); }
+.f-count[hidden] { display: none; }
