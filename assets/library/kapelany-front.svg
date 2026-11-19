@@ -2,7 +2,7 @@
 <rect width="400" height="600" fill="#34495e"/>
 <rect x="18" y="18" width="364" height="564" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
 <rect x="0" y="0" width="14" height="600" fill="#000" fill-opacity=".22"/>
-<g fill="#fff" font-family="Georgia, 'Times New Roman', serif" font-weight="700" text-anchor="middle"><text x="200" y="252" font-size="40">КАПЕЛАНИ. НА</text><text x="200" y="300" font-size="40">СЛУЖБІ БОГУ І</text><text x="200" y="348" font-size="40">УКРАЇНІ</text></g>
-<text x="200" y="520" fill="#fff" fill-opacity=".85" font-family="Helvetica, Arial, sans-serif" font-size="22" text-anchor="middle"></text>
+<g fill="#fff" font-family="Georgia, 'Times New Roman', serif" font-weight="700" text-anchor="middle"><text x="200" y="222" font-size="38">КАПЕЛАНИ.</text><text x="200" y="267" font-size="38">НА СЛУЖБІ</text><text x="200" y="313" font-size="38">БОГУ І</text><text x="200" y="358" font-size="38">УКРАЇНІ</text></g>
+<g fill="#fff" fill-opacity=".85" font-family="Helvetica, Arial, sans-serif" text-anchor="middle"></g>
 <text x="200" y="80" fill="#e4f04a" font-family="Helvetica, Arial, sans-serif" font-size="16" letter-spacing="4" text-anchor="middle">БІБЛІОТЕКА УАЛ</text>
 </svg>

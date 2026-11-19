@@ -1876,11 +1876,8 @@ BOOKS.push(...[
   "title": "Психологія впливу",
   "authorId": "robert-chaldini",
   "genre": "Психологія та виховання",
-  "publisher": "Клуб Сімейного Дозвілля",
-  "year": 2020,
-  "pages": 752,
-  "isbn": "978-617-12-3352-2",
-  "translator": "Микита Скоробогатов",
+  "publisher": "КСД",
+  "year": 2024,
   "front": "assets/library/psykholohiia-vplyvu-front.jpg",
   "short": "Шість принципів, за якими нас переконують. Оновлене видання.",
   "description": [

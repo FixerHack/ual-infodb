@@ -2,7 +2,7 @@
 <rect width="400" height="600" fill="#3b3f8f"/>
 <rect x="18" y="18" width="364" height="564" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
 <rect x="0" y="0" width="14" height="600" fill="#000" fill-opacity=".22"/>
-<g fill="#fff" font-family="Georgia, 'Times New Roman', serif" font-weight="700" text-anchor="middle"><text x="200" y="242" font-size="32">УСНА ІСТОРІЯ</text><text x="200" y="281" font-size="32">РОСІЙСЬКО-</text><text x="200" y="319" font-size="32">УКРАЇНСЬКОЇ</text><text x="200" y="358" font-size="32">ВІЙНИ</text></g>
-<text x="200" y="520" fill="#fff" fill-opacity=".85" font-family="Helvetica, Arial, sans-serif" font-size="22" text-anchor="middle"></text>
+<g fill="#fff" font-family="Georgia, 'Times New Roman', serif" font-weight="700" text-anchor="middle"><text x="200" y="213" font-size="32">УСНА</text><text x="200" y="252" font-size="32">ІСТОРІЯ</text><text x="200" y="290" font-size="32">РОСІЙСЬКО-</text><text x="200" y="328" font-size="32">УКРАЇНСЬКОЇ</text><text x="200" y="367" font-size="32">ВІЙНИ</text></g>
+<g fill="#fff" fill-opacity=".85" font-family="Helvetica, Arial, sans-serif" text-anchor="middle"></g>
 <text x="200" y="80" fill="#e4f04a" font-family="Helvetica, Arial, sans-serif" font-size="16" letter-spacing="4" text-anchor="middle">БІБЛІОТЕКА УАЛ</text>
 </svg>

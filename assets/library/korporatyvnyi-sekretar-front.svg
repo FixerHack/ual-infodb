@@ -2,7 +2,7 @@
 <rect width="400" height="600" fill="#2f5d50"/>
 <rect x="18" y="18" width="364" height="564" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
 <rect x="0" y="0" width="14" height="600" fill="#000" fill-opacity=".22"/>
-<g fill="#fff" font-family="Georgia, 'Times New Roman', serif" font-weight="700" text-anchor="middle"><text x="200" y="276" font-size="40">КОРПОРАТИВНИЙ</text><text x="200" y="324" font-size="40">СЕКРЕТАР</text></g>
-<text x="200" y="520" fill="#fff" fill-opacity=".85" font-family="Helvetica, Arial, sans-serif" font-size="22" text-anchor="middle"></text>
+<g fill="#fff" font-family="Georgia, 'Times New Roman', serif" font-weight="700" text-anchor="middle"><text x="200" y="274" font-size="26">КОРПОРАТИВНИЙ</text><text x="200" y="306" font-size="26">СЕКРЕТАР</text></g>
+<g fill="#fff" fill-opacity=".85" font-family="Helvetica, Arial, sans-serif" text-anchor="middle"></g>
 <text x="200" y="80" fill="#e4f04a" font-family="Helvetica, Arial, sans-serif" font-size="16" letter-spacing="4" text-anchor="middle">БІБЛІОТЕКА УАЛ</text>
 </svg>
