@@ -35,8 +35,11 @@ const UAL = (() => {
     try { fetch(UAL_API_URL, { method: "POST", body, mode: "no-cors", keepalive: true }); } catch (e) {}
   }
 
-  // Екран «Доступ обмежено» для пристроїв, заблокованих на весь сайт.
-  // Стан кешується на 5 хв, щоб не питати таблицю на кожній сторінці.
+  // Екран блокування для пристроїв, заблокованих на весь сайт.
+  // Статус перевіряється кожні 30 секунд, поки вкладка відкрита й видима.
+  const CHECK_MS = 30 * 1000;
+  let checking = false;
+
   function showBlocked() {
     if (document.getElementById("ual-blocked")) return;
     document.documentElement.classList.add("ual-blocked");
@@ -45,25 +48,41 @@ const UAL = (() => {
     el.className = "block-screen";
     el.innerHTML = `<div class="block-box"><div class="block-ico">🔒</div><h1>Тебе заблокував власник сайту</h1>
       <p>…або ти просто не уалівець 🙂</p>
+      <button class="btn" type="button" id="ual-retry">Спробувати ще раз</button>
       <p class="block-note">Якщо це помилка — напиши власнику сайту й назви код пристрою: <b>${device}</b></p></div>`;
     document.body.appendChild(el);
+    document.getElementById("ual-retry").addEventListener("click", (e) => {
+      e.target.disabled = true;
+      e.target.textContent = "Перевіряємо…";
+      checkBlock(true).finally(() => {
+        const btn = document.getElementById("ual-retry");
+        if (btn) { btn.disabled = false; btn.textContent = "Спробувати ще раз"; }
+      });
+    });
   }
-  function checkBlock() {
-    if (!UAL_API_URL || !device) return;
+
+  function checkBlock(force = false) {
+    if (!UAL_API_URL || !device) return Promise.resolve();
     let cached = {};
     try { cached = JSON.parse(get("ual-block") || "{}"); } catch (e) {}
     if (cached.block === "site") showBlocked();
-    if (Date.now() - (cached.t || 0) < 5 * 60 * 1000) return;
-    fetch(UAL_API_URL + "?check=1&device=" + encodeURIComponent(device))
+    if (checking || (!force && Date.now() - (cached.t || 0) < CHECK_MS)) return Promise.resolve();
+    checking = true;
+    return fetch(UAL_API_URL + "?check=1&device=" + encodeURIComponent(device) + "&t=" + Date.now())
       .then((r) => r.json())
       .then((r) => {
         if (!r || !r.ok) return;
         set("ual-block", JSON.stringify({ block: r.block || "", t: Date.now() }));
         if (r.block === "site") showBlocked();
-        else if (cached.block === "site") location.reload();
+        else if (document.getElementById("ual-blocked")) location.reload();
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { checking = false; });
   }
+
+  // Періодична перевірка лише для видимої вкладки
+  setInterval(() => { if (document.visibilityState === "visible") checkBlock(); }, CHECK_MS);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkBlock(); });
 
   return {
     device, ua, type, logView, checkBlock,

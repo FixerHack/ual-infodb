@@ -884,5 +884,6 @@ html.ual-blocked body { overflow: hidden; }
 .block-ico { font-size: 3rem; margin-bottom: 8px; }
 .block-box h1 { font-size: clamp(1.6rem, 6vw, 2.2rem); margin-bottom: 10px; }
 .block-box p { color: var(--muted); }
-.block-note { font-size: .9rem; margin: 0; }
+.block-note { font-size: .9rem; margin: 16px 0 0; }
+.block-box .btn { margin-top: 6px; }
 .block-note b { color: var(--ink); font-family: ui-monospace, Menlo, monospace; }
