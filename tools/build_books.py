@@ -6,7 +6,7 @@
 Обкладинка: assets/library/<id>-front.jpg (або .svg — заглушка з tools/placeholder_cover.py).
 python3 tools/build_books.py
 """
-import json, os, re, runpy, glob
+import json, os, re, runpy, glob, subprocess
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 TR = dict(zip("абвгґдеєжзиіїйклмнопрстуфхцчшщьюя'’",
@@ -42,10 +42,18 @@ for f in sorted(glob.glob(os.path.join(ROOT, "tools", "books", "*.py"))):
             w, h = (int(x) for x in re.findall(r"pixel\w+: (\d+)", out))
             if w / h > 0.85: o["ratio"] = f"{w} / {h}"
         o.update(front=front, short=short, description=desc)
+        if front.endswith(".jpg"):  # мініатюра для каталогу — щоб сторінка вантажилась швидко
+            th = f"assets/library/thumbs/{bid}.jpg"
+            src, dst = os.path.join(ROOT, front), os.path.join(ROOT, th)
+            if not os.path.exists(dst) or os.path.getmtime(dst) < os.path.getmtime(src):
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "68", "--resampleHeight", "330", src, "--out", dst], capture_output=True)
+            o["thumb"] = th
         books.append(o)
         if author and not author.startswith("@"):
             auth.setdefault(author, ("", []))
 
+AUTHORS_OLD = {"andriy-zelinskyy": {"name": "Андрій Зелінський"}, "lewis-carroll": {"name": "Льюїс Керрол"}}
 authors = {}
 for name, (role, bio) in auth.items():
     authors[slug(name)] = {"name": name, "role": role, "bio": bio}
@@ -54,4 +62,19 @@ js = ("// Згенеровано tools/build_books.py з tools/books/*.py — п
       "Object.assign(AUTHORS, " + json.dumps(authors, ensure_ascii=False, indent=1) + ");\n"
       "BOOKS.push(..." + json.dumps(books, ensure_ascii=False, indent=1) + ");\n")
 open(os.path.join(ROOT, "assets", "library-data-2.js"), "w", encoding="utf-8").write(js)
-print(len(books), "книжок,", len(authors), "авторів")
+# Список для власника: які книжки ще без справжнього фото обкладинки
+APPROX = {"orvell-1984": "у нас «Атена»", "gulliver": "у нас «А-ба-ба-га-ла-ма-га»", "piter-pen": "у нас з ілюстраціями Ґребан",
+          "karpatskyi-kapkan": "у нас «Кальварія»", "iliada": "у нас «Атена»", "kobzar": "у нас «КУЛ»",
+          "soniachna-mashyna": "у нас інша обкладинка", "malenkyi-pryn": "у нас інше видання",
+          "prodaietsia-vse": "у нас старіше видання", "pidmohylnyi-misto": ""}
+miss = [b for b in books if b["front"].endswith(".svg")]
+appr = [b for b in books if b["id"] in APPROX and not b["front"].endswith(".svg")]
+md = ["# Книжки без справжньої обкладинки", "",
+      "Щоб замінити: сфотографуй обкладинку рівно, обріж і поклади в `assets/library/` як `<код>-front.jpg`,",
+      "видали `<код>-front.svg` і запусти `python3 tools/build_books.py`.", "",
+      f"## Заглушка замість обкладинки ({len(miss)})", "", "| Код | Книжка | Автор |", "|---|---|---|"]
+md += [f"| `{b['id']}` | {b['title']} | {authors.get(b['authorId'], AUTHORS_OLD.get(b['authorId'], {})).get('name', '') if b['authorId'] else ''} |" for b in miss]
+md += ["", f"## Фото іншого видання ({len(appr)})", "", "| Код | Книжка | Примітка |", "|---|---|---|"]
+md += [f"| `{b['id']}` | {b['title']} | {APPROX[b['id']]} |" for b in appr]
+open(os.path.join(ROOT, "tools", "bez-obkladynok.md"), "w", encoding="utf-8").write("\n".join(md) + "\n")
+print(len(books), "книжок,", len(authors), "авторів;", len(miss), "без обкладинки")
