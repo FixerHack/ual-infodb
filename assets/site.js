@@ -164,5 +164,14 @@ window.UAL_SECTIONS = SECTIONS;
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
 
+  // Святковий режим: з 1 грудня до кінця лютого (?xmas=1 — увімкнути для перевірки, ?xmas=0 — вимкнути)
+  const force = new URLSearchParams(location.search).get("xmas");
+  if (force === "1" || (force !== "0" && [11, 0, 1].includes(new Date().getMonth()))) {
+    const x = document.createElement("script");
+    x.src = "assets/xmas.js?v=20261137";
+    x.defer = true;
+    document.body.appendChild(x);
+  }
+
   if (typeof UAL !== "undefined") { UAL.checkBlock(); UAL.logView(); }
 })();
