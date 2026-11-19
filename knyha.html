@@ -24,7 +24,8 @@
 
 <script src="assets/core.js?v=20261128"></script>
 <script src="assets/students.js?v=20261126"></script>
-<script src="assets/library-data.js?v=20261126"></script>
+<script src="assets/library-data.js?v=20261130"></script>
+<script src="assets/library-data-2.js?v=20261130"></script>
 <script src="assets/library.js?v=20261126"></script>
 <script>
 const id = new URLSearchParams(location.search).get("id");
@@ -36,7 +37,7 @@ if (!book) {
   page.innerHTML = `<section class="hero"><h1>Книжку не знайдено</h1><p class="lead">Можливо, посилання застаріло.</p><a class="btn" href="biblioteka.html">← До бібліотеки</a></section>`;
 } else {
   document.body.classList.add("has-actionbar");
-  const author = AUTHORS[book.authorId] || { name: "", bio: [] };
+  const author = Object.assign({ name: "", bio: [] }, AUTHORS[book.authorId]);
   const others = BOOKS.filter((b) => b.authorId === book.authorId && b.id !== book.id);
   document.title = `УАЛ | ${book.title}`;
   page.innerHTML = `
@@ -52,7 +53,7 @@ if (!book) {
       <div class="bk-main">
         <span class="eyebrow">${book.genre}</span>
         <h1>${book.title}</h1>
-        <a class="bk-author" href="#author">${author.name}</a>
+        ${author.name ? `<a class="bk-author" href="${author.bio.length || author.role ? "#author" : "biblioteka.html"}">${author.name}</a>` : ""}
         <p class="lead">${book.short}</p>
         <div class="bk-status" id="status"><div class="skeleton"></div></div>
         <dl class="bk-meta">
@@ -71,7 +72,7 @@ if (!book) {
       <div class="card prose">${book.description.map((p) => `<p>${p}</p>`).join("")}</div>
     </section>
 
-    <section id="author">
+    ${author.name && (author.bio.length || author.role || others.length) ? `<section id="author">
       <div class="section-title"><span class="num">02</span><h2>Про автора</h2></div>
       <div class="card author-card">
         <div class="author-ava">${author.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
@@ -82,7 +83,7 @@ if (!book) {
           ${others.length ? `<div class="author-more"><b>Ще в бібліотеці:</b> ${others.map((b) => `<a href="knyha.html?id=${b.id}">${b.title}</a>`).join(", ")}</div>` : ""}
         </div>
       </div>
-    </section>`;
+    </section>` : ""}`;
 
   const flip = () => document.getElementById("flip").classList.toggle("flipped");
   document.getElementById("flip-btn")?.addEventListener("click", flip);
