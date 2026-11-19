@@ -19,8 +19,8 @@ const STRICT = false;
 const MAX_EVENTS = 5000; // скільки останніх рядків тримати в «Логах»
 
 // Колонки аркуша «Студенти»
-const C_NAME = 1, C_PHONE = 2, C_LAPTOP = 3, C_TRIES = 4, C_TRIED_ON = 5, C_LAST = 6, C_RESET = 7, C_BLOCKED = 8;
-const STUDENT_HEADERS = ["Студент", "Телефон", "Ноутбук", "Брав(ла) на чужі імена", "На це ім'я пробували", "Остання спроба", "Скинути пристрої", "Заблоковано"];
+const C_NAME = 1, C_PHONE = 2, C_LAPTOP = 3, C_TRIES = 4, C_TRIED_ON = 5, C_LAST = 6, C_RESET = 7, C_BLOCKED = 8, C_COUNT = 9, C_BOOKS = 10;
+const STUDENT_HEADERS = ["Студент", "Телефон", "Ноутбук", "Брав(ла) на чужі імена", "На це ім'я пробували", "Остання спроба", "Скинути пристрої", "Заблоковано", "Книжок на руках", "Які книжки"];
 
 const STUDENTS = [
   "Білик Анастасія", "Будзан Олександр", "Буняк Вікторія", "Вусик Євгенія", "Габрикевич Ангеліна",
@@ -68,6 +68,11 @@ function setup() {
   const n = Math.max(st.getLastRow() - 1, 1);
   if (!st.getRange(2, C_RESET).getDataValidation()) st.getRange(2, C_RESET, n, 1).insertCheckboxes();
   if (!st.getRange(2, C_BLOCKED).getDataValidation()) st.getRange(2, C_BLOCKED, n, 1).insertCheckboxes();
+  if (st.getColumnWidth(C_BOOKS) < 300) {
+    st.setColumnWidth(C_BOOKS, 420);
+    st.getRange(2, C_BOOKS, n, 1).setWrap(true).setVerticalAlignment("top");
+    st.getRange(2, C_COUNT, n, 1).setHorizontalAlignment("center");
+  }
 
   // Логи
   if (!ss.getSheetByName(SHEET_EVENTS)) {
@@ -291,6 +296,32 @@ function writeStatus_(loans) {
     sh.getRange(2, 1, rows.length, 5).setValues(rows);
     sh.getRange(2, 5, rows.length, 1).setNumberFormat("dd.MM.yyyy");
   }
+  writeStudentBooks_(loans, books);
+}
+
+// Колонки «Книжок на руках» і «Які книжки» в аркуші «Студенти»
+function writeStudentBooks_(loans, books) {
+  const st = SpreadsheetApp.getActive().getSheetByName(SHEET_STUDENTS);
+  if (!st || st.getLastRow() < 2) return;
+  // Не перезаписуємо чужі колонки: якщо там уже інший заголовок — нічого не робимо
+  const ours = [[C_COUNT, "Книжок на руках"], [C_BOOKS, "Які книжки"]].every(([c, h]) => {
+    const cell = st.getRange(1, c), v = String(cell.getValue()).trim();
+    if (!v) cell.setValue(h).setFontWeight("bold");
+    return !v || v === h;
+  });
+  if (!ours) return;
+  const title = {};
+  books.forEach((b) => { title[b.id] = b.title; });
+  const byName = {};
+  Object.keys(loans).forEach((id) => {
+    const n = String(loans[id].name).trim();
+    (byName[n] = byName[n] || []).push(title[id] || id);
+  });
+  const rows = st.getRange(2, C_NAME, st.getLastRow() - 1, 1).getValues().map(([n]) => {
+    const list = (byName[String(n).trim()] || []).sort((a, b) => a.localeCompare(b, "uk"));
+    return String(n).trim() ? [list.length, list.map((t) => "• " + t).join("\n")] : ["", ""];
+  });
+  st.getRange(2, C_COUNT, rows.length, 2).setValues(rows);
 }
 
 function createStatusSheet_(ss) {
