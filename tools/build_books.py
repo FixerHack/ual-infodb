@@ -15,12 +15,17 @@ TR = dict(zip("абвгґдеєжзиіїйклмнопрстуфхцчшщью�
 def slug(name):
     return re.sub(r"[^a-z0-9]+", "-", "".join(TR.get(c, c) for c in name.lower())).strip("-")
 
-auth, books, seen = {}, [], set()
+auth, books, seen, ovr, raw = {}, [], set(), {}, []
 for f in sorted(glob.glob(os.path.join(ROOT, "tools", "books", "*.py"))):
     d = runpy.run_path(f)
     auth.update(d.get("AUTH", {}))
-    for b in d["BOOKS"]:
+    ovr.update(d.get("OVR", {}))  # докладні описи: {id: {"author", "short", "desc", "genre", "title"}}
+    raw += d.get("BOOKS", [])
+for b in raw:
         bid, title, author, genre, pub, year, pages, isbn, tr, short, desc = b
+        o2 = ovr.get(bid, {})
+        title, author, genre = o2.get("title", title), o2.get("author", author), o2.get("genre", genre)
+        short, desc = o2.get("short", short), o2.get("desc", desc)
         assert bid not in seen, bid
         seen.add(bid)
         front = next((f"assets/library/{bid}-front.{e}" for e in ("jpg", "svg")

@@ -74,7 +74,7 @@
 <script src="assets/core.js?v=20261128"></script>
 <script src="assets/students.js?v=20261126"></script>
 <script src="assets/library-data.js?v=20261130"></script>
-<script src="assets/library-data-2.js?v=20261132"></script>
+<script src="assets/library-data-2.js?v=20261134"></script>
 <script src="assets/library.js?v=20261126"></script>
 <script>
 let loans = {};
@@ -121,6 +121,8 @@ function render() {
     .filter((b) => !q || norm(b.title).includes(q) || norm(aname(b)).includes(q))
     .sort((a, b) => {
       if (F.sort === "author") return (aname(a) || "яяя").localeCompare(aname(b) || "яяя", "uk") || a.title.localeCompare(b.title, "uk");
+      const lat = (t) => /^[^а-яґєіїё]/i.test(t);  // латиниця й цифри — завжди в кінці
+      if (lat(a.title) !== lat(b.title)) return lat(a.title) ? 1 : -1;
       const c = a.title.localeCompare(b.title, "uk");
       return F.sort === "za" ? -c : c;
     });

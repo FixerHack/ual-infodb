@@ -49,7 +49,7 @@
 | `istoriia-lehionu-uss` | Історія Легіону Українських Січових Стрільців |  |
 | `batko-jergovych` | Батько |  |
 | `poizdky` | Поїздки |  |
-| `svii-chas` | Свій час |  |
+| `svii-chas` | Свій час | Яна Дубинянська |
 | `berezil-7-8-93` | Березіль 7–8'93 |  |
 | `fourth-republic-en` | The Fourth Republic | Borys Lozhkin |
 | `ukraine-throughout-the-world` | Ukraine and Ukrainians Throughout the World |  |
