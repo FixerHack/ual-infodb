@@ -25,6 +25,20 @@ const Library = (() => {
     } finally { clearTimeout(t); }
   }
 
+  // Які книжки брали саме з цього пристрою — щоб тихо показувати «свої» першими
+  const MINE_KEY = "ual-my-books";
+  const readMine = () => { try { return JSON.parse(localStorage.getItem(MINE_KEY) || "[]"); } catch (e) { return []; } };
+  const writeMine = (a) => { try { localStorage.setItem(MINE_KEY, JSON.stringify(a.slice(-50))); } catch (e) {} };
+  const markMine = (id, on) => writeMine([...readMine().filter((x) => x !== id), ...(on ? [id] : [])]);
+
+  // Книжка на руках у «мене»: записана на моє ім'я або взята з цього пристрою
+  function isMine(id, loans) {
+    const l = loans && loans[id];
+    if (!l) return false;
+    const me = typeof UAL !== "undefined" ? UAL.lastName() : "";
+    return (me && l.name === me) || readMine().includes(id);
+  }
+
   const dev = () => (typeof UAL !== "undefined" ? { device: UAL.device, ua: UAL.ua, type: UAL.type } : {});
 
   // Каталог для аркуша «Стан книжок» у таблиці
@@ -48,10 +62,12 @@ const Library = (() => {
       if (l[book.id]) return { ok: false, error: "Книжку вже взяли: " + l[book.id].name, loans: l };
       l[book.id] = { name, date: new Date().toISOString() };
       writeDemo(l);
+      markMine(book.id, true);
       return { ok: true, loans: l };
     }
     const r = await call({ action: "take", bookId: book.id, title: book.title, name, confirm, ...dev(), books: catalog() });
     if (r.ok && typeof UAL !== "undefined") UAL.rememberName(name);
+    if (r.ok) markMine(book.id, true);
     return r;
   }
 
@@ -60,9 +76,12 @@ const Library = (() => {
       const l = readDemo();
       delete l[book.id];
       writeDemo(l);
+      markMine(book.id, false);
       return { ok: true, loans: l };
     }
-    return call({ action: "return", bookId: book.id, title: book.title, ...dev(), books: catalog() });
+    const r = await call({ action: "return", bookId: book.id, title: book.title, ...dev(), books: catalog() });
+    if (r.ok) markMine(book.id, false);
+    return r;
   }
 
   const fmtDate = (iso) => {
@@ -72,7 +91,7 @@ const Library = (() => {
 
   const lastName = () => (typeof UAL !== "undefined" ? UAL.lastName() : "");
 
-  return { demo, state, take, giveBack, fmtDate, lastName };
+  return { demo, state, take, giveBack, fmtDate, lastName, isMine };
 })();
 
 // Маленьке спливаюче повідомлення
