@@ -19,7 +19,8 @@ auth, books, seen, ovr, raw = {}, [], set(), {}, []
 for f in sorted(glob.glob(os.path.join(ROOT, "tools", "books", "*.py"))):
     d = runpy.run_path(f)
     auth.update(d.get("AUTH", {}))
-    ovr.update(d.get("OVR", {}))  # докладні описи: {id: {"author", "short", "desc", "genre", "title"}}
+    for k, v in d.get("OVR", {}).items(): ovr.setdefault(k, {}).update(v)
+    for k, v in d.get("SHORT", {}).items(): ovr.setdefault(k, {})["short"] = v  # докладні описи: {id: {"author", "short", "desc", "genre", "title"}}
     raw += d.get("BOOKS", [])
 for b in raw:
         bid, title, author, genre, pub, year, pages, isbn, tr, short, desc = b
