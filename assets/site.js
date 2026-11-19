@@ -164,14 +164,44 @@ window.UAL_SECTIONS = SECTIONS;
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
 
-  // Святковий режим: з 1 грудня до кінця лютого (?xmas=1 — увімкнути для перевірки, ?xmas=0 — вимкнути)
+  // Святковий режим: з 1 грудня до кінця лютого.
+  // Перевизначення: ?xmas=1 / ?xmas=0 у посиланні або тумблер власника (зберігається в цьому браузері).
+  const XMAS_KEY = "ual-xmas";
+  const xmasPref = () => { try { return localStorage.getItem(XMAS_KEY) || ""; } catch (e) { return ""; } };
   const force = new URLSearchParams(location.search).get("xmas");
-  if (force === "1" || (force !== "0" && [11, 0, 1].includes(new Date().getMonth()))) {
+  const season = [11, 0, 1].includes(new Date().getMonth());
+  const pref = xmasPref();
+  if (force === "1" || (force !== "0" && (pref === "on" || (pref !== "off" && season)))) {
     const x = document.createElement("script");
-    x.src = "assets/xmas.js?v=20261137";
+    x.src = "assets/xmas.js?v=20261138";
     x.defer = true;
     document.body.appendChild(x);
   }
+
+  // Тумблер у футері — лише для пристрою власника. У коді зберігається не сам код пристрою,
+  // а його PBKDF2-хеш, тож дізнатися код звідси не можна.
+  const OWNER = "0eb18e6c91af8f3a78a618bca0fc714bd56cc64a490121e29d04665660d1e175";
+  (async () => {
+    try {
+      const dev = typeof UAL !== "undefined" ? UAL.device : "";
+      if (!dev || !crypto.subtle) return;
+      const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(dev), "PBKDF2", false, ["deriveBits"]);
+      const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: new TextEncoder().encode("ual-xmas-owner"), iterations: 100000, hash: "SHA-256" }, key, 256);
+      if ([...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, "0")).join("") !== OWNER) return;
+      const modes = [["", "авто (1.12 — 28.02)"], ["on", "увімкнено"], ["off", "вимкнено"]];
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "owner-xmas";
+      const cur = () => modes.find((m) => m[0] === xmasPref()) || modes[0];
+      btn.textContent = "🎄 Святковий режим: " + cur()[1];
+      btn.addEventListener("click", () => {
+        const next = modes[(modes.indexOf(cur()) + 1) % modes.length][0];
+        try { next ? localStorage.setItem(XMAS_KEY, next) : localStorage.removeItem(XMAS_KEY); } catch (e) {}
+        location.reload();
+      });
+      footer.querySelector(".wrap").appendChild(btn);
+    } catch (e) {}
+  })();
 
   if (typeof UAL !== "undefined") { UAL.checkBlock(); UAL.logView(); }
 })();

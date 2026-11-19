@@ -9,7 +9,8 @@
   const store = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } },
                   set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
   const now = new Date();
-  const MESSAGE = now.getMonth() === 11 ? `MERRY CHRISTMAS ${now.getFullYear()}` : `HAPPY NEW YEAR ${now.getFullYear()}`;
+  const XMAS = now.getMonth() >= 10;  // листопад–грудень — Різдво, січень–лютий — Новий рік
+  const MESSAGE = XMAS ? `MERRY CHRISTMAS ${now.getFullYear()}` : `HAPPY NEW YEAR ${now.getFullYear()}`;
   document.documentElement.classList.add("xmas");
 
   // ======================================================================== сніг на сторінці
@@ -377,7 +378,7 @@
     const sec = document.createElement("section");
     sec.className = "xmas-card";
     sec.innerHTML = `<canvas class="xmas-tree" aria-label="Анімована ASCII-ялинка з написом ${MESSAGE}" role="img"></canvas>
-      <div class="xmas-caption"><b>${now.getMonth() === 11 ? "З Різдвом Христовим!" : "З Новим роком!"}</b><span>Натисни на ялинку, щоб вона виросла знову</span></div>`;
+      <div class="xmas-caption"><b>${XMAS ? "З Різдвом Христовим!" : "З Новим роком!"}</b><span>Натисни на ялинку, щоб вона виросла знову</span></div>`;
     hero.after(sec);
     const cv = sec.querySelector("canvas"), ctx = cv.getContext("2d");
     const mobile = matchMedia("(max-width: 640px)").matches;
