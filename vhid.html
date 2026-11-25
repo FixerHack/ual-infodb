@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=20261141">
+  <link rel="stylesheet" href="assets/style.css?v=20261142">
 </head>
 <body>
 <main>
@@ -17,12 +17,12 @@
     <section class="hero">
       <span class="eyebrow">Лише для студентів осередку</span>
       <h1>Хто ти?</h1>
-      <p class="lead">Сайт відкритий тільки для студентів УАЛ Львів. Найпростіше — відкрити особисте посилання, яке надіслав адміністратор.</p>
+      <p class="lead">Сайт відкритий тільки для студентів УАЛ Львів. Найпростіше — відкрити особисте посилання, яке надіслав адміністратор (воно одноразове).</p>
     </section>
     <section class="id-box card" id="box" aria-live="polite"></section>
   </div>
 </main>
-<script src="assets/core.js?v=20261141"></script>
+<script src="assets/core.js?v=20261142"></script>
 <script src="assets/students.js?v=20261126"></script>
 <script>
 const box = document.getElementById("box");
@@ -59,7 +59,7 @@ async function claim(k) {
   history.replaceState(null, "", "vhid" + (params.get("next") ? "?next=" + encodeURIComponent(next) : ""));
   box.innerHTML = `<p class="id-wait">Перевіряємо посилання…</p>`;
   const r = await api({ action: "claim", token: k });
-  if (r.ok) { UAL.setIdentity(k, r.name); set(REQ_KEY, ""); welcome(r.name); }
+  if (r.ok && r.token) { UAL.setIdentity(r.token, r.name); set(REQ_KEY, ""); welcome(r.name); }
   else { form(r.error); }
 }
 
@@ -120,6 +120,6 @@ else if (UAL.token) known();
 else if (req && req.id) pending(req.id, req.name);
 else form();
 </script>
-<script src="assets/site.js?v=20261141"></script>
+<script src="assets/site.js?v=20261143"></script>
 </body>
 </html>

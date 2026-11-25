@@ -980,7 +980,7 @@ html.ual-blocked body { overflow: hidden; }
 .id-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .footer-me { color: var(--violet); font-weight: 600; text-decoration: none; }
 
-/* ---------- Ф4 ---------- */
+/* ---------- F4 ---------- */
 .f4-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
 @media (max-width: 860px) { .f4-grid { grid-template-columns: 1fr; } }
 .f4-form { display: grid; gap: 10px; }

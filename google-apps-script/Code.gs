@@ -3,8 +3,8 @@
 // Скрипт прив'язаний до таблиці «Бібліотека» і сам створює та веде ще три таблиці:
 //   Бібліотека (ця)        — Стан книжок, Журнал
 //   УАЛ · Сайт             — Студенти, Логи, Блокування, Посилання, Запити доступу
-//   УАЛ · Ф4               — Запити (з причинами, рішення), По днях         — лише для адміністратора
-//   УАЛ · Ф4 (публічна)    — Заявки, По днях — без причин                     — можна поділитися зі студентами
+//   УАЛ · F4               — Запити (з причинами, рішення), По днях         — лише для адміністратора
+//   УАЛ · F4 (публічна)    — Заявки, По днях — без причин                     — можна поділитися зі студентами
 // ID нових таблиць зберігаються у властивостях скрипта. Посилання на них — у журналі виконання setup().
 
 const SHEET_LOG = "Журнал";
@@ -14,6 +14,8 @@ const SHEET_EVENTS = "Логи";
 const SHEET_BLOCK = "Блокування";
 const SHEET_LINKS = "Посилання";
 const SHEET_ACCESS = "Запити доступу";
+const SHEET_SETTINGS = "Налаштування";
+const SET_GATE = "Вхід лише для студентів";
 const SHEET_F4 = "Запити";
 const SHEET_F4_DAYS = "По днях";
 const SHEET_F4_PUB = "Заявки";
@@ -34,9 +36,9 @@ const MAX_EVENTS = 5000; // скільки останніх рядків три�
 
 // Колонки аркуша «Студенти»
 const C_NAME = 1, C_PHONE = 2, C_LAPTOP = 3, C_TRIES = 4, C_TRIED_ON = 5, C_LAST = 6, C_RESET = 7, C_BLOCKED = 8,
-  C_COUNT = 9, C_BOOKS = 10, C_TOKEN = 11, C_ACCESS = 12;
+  C_COUNT = 9, C_BOOKS = 10, C_TOKEN = 11, C_ACCESS = 12, C_INVITE = 13, C_INVITED = 14;
 const STUDENT_HEADERS = ["Студент", "Телефон", "Ноутбук", "Брав(ла) на чужі імена", "На це ім'я пробували", "Остання спроба",
-  "Скинути пристрої", "Заблоковано", "Книжок на руках", "Які книжки", "Код доступу", "Доступ"];
+  "Скинути пристрої", "Заблоковано", "Книжок на руках", "Які книжки", "Код доступу", "Доступ", "Запрошення", "Посилання використано"];
 
 const STUDENTS = [
   "Білик Анастасія", "Будзан Олександр", "Буняк Вікторія", "Вусик Євгенія", "Габрикевич Ангеліна",
@@ -151,6 +153,17 @@ function setup() {
     ac.hideColumns(1);
   }
 
+  // Налаштування: перемикач обов'язкового входу
+  if (!site.getSheetByName(SHEET_SETTINGS)) {
+    const se = site.insertSheet(SHEET_SETTINGS);
+    se.getRange(1, 1, 1, 3).setValues([["Параметр", "Значення", "Пояснення"]]).setFontWeight("bold");
+    se.getRange(2, 1, 1, 3).setValues([[SET_GATE, "Ні", "Так — без підтвердження особи сайт не відкривається; Ні — відкритий для всіх"]]);
+    se.getRange(2, 2).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(["Так", "Ні"], true).setAllowInvalid(false).build());
+    se.setColumnWidth(1, 240);
+    se.setColumnWidth(3, 520);
+    se.setFrozenRows(1);
+  }
+
   setupF4_();
   applyValidation_();
   bindFromHistory_();
@@ -162,8 +175,8 @@ function setup() {
   if (blank && blank.getLastRow() === 0 && lib.getSheets().length > 2) lib.deleteSheet(blank);
 
   Logger.log("Таблиця «Сайт»: " + site.getUrl());
-  if (f4_()) Logger.log("Таблиця «Ф4»: " + f4_().getUrl());
-  if (f4pub_()) Logger.log("Таблиця «Ф4 (публічна)»: " + f4pub_().getUrl());
+  if (f4_()) Logger.log("Таблиця «F4»: " + f4_().getUrl());
+  if (f4pub_()) Logger.log("Таблиця «F4 (публічна)»: " + f4pub_().getUrl());
 }
 
 // Переносимо Студенти / Логи / Блокування в окрему таблицю «УАЛ · Сайт» (лише один раз).
@@ -196,10 +209,10 @@ function splitSite_() {
   moved.forEach((sh) => lib.deleteSheet(sh));
 }
 
-// Ф4: приватна таблиця з причинами і публічна — без них
+// F4: приватна таблиця з причинами і публічна — без них
 function setupF4_() {
   if (!f4_()) {
-    const ss = SpreadsheetApp.create("УАЛ · Ф4");
+    const ss = SpreadsheetApp.create("УАЛ · F4");
     const q = ss.getSheets()[0].setName(SHEET_F4);
     q.appendRow(["ID", "Подано", "Студент", "Дата", "Причина", "Рішення", "Коментар"]);
     q.getRange(1, 1, 1, 7).setFontWeight("bold");
@@ -224,7 +237,7 @@ function setupF4_() {
     memo_.f4Id = ss;
   }
   if (!f4pub_()) {
-    const ss = SpreadsheetApp.create("УАЛ · Ф4 (публічна)");
+    const ss = SpreadsheetApp.create("УАЛ · F4 (публічна)");
     const a = ss.getSheets()[0].setName(SHEET_F4_PUB);
     a.appendRow(["Дата", "Студент", "Статус"]);
     a.getRange(1, 1, 1, 3).setFontWeight("bold");
@@ -281,9 +294,9 @@ function applyValidation_() {
 // ============================================================================
 function registry_() {
   const st = siteSheet_(SHEET_STUDENTS);
-  const byName = {}, byDevice = {}, byToken = {}, list = [];
+  const byName = {}, byDevice = {}, byToken = {}, byInvite = {}, list = [];
   if (st && st.getLastRow() >= 2) {
-    st.getRange(2, 1, st.getLastRow() - 1, C_ACCESS).getValues().forEach((r, i) => {
+    st.getRange(2, 1, st.getLastRow() - 1, C_INVITED).getValues().forEach((r, i) => {
       const name = String(r[C_NAME - 1]).trim();
       if (!name) return;
       const rec = {
@@ -292,15 +305,17 @@ function registry_() {
         tries: Number(r[C_TRIES - 1]) || 0, triedOn: Number(r[C_TRIED_ON - 1]) || 0,
         blocked: r[C_BLOCKED - 1] === true,
         token: String(r[C_TOKEN - 1]).trim(), access: r[C_ACCESS - 1] === true,
+        invite: String(r[C_INVITE - 1]).trim(), invited: r[C_INVITED - 1],
       };
       byName[name] = rec;
       list.push(name);
       if (rec.phone) byDevice[rec.phone] = name;
       if (rec.laptop) byDevice[rec.laptop] = name;
       if (rec.token) byToken[rec.token] = rec;
+      if (rec.invite) byInvite[rec.invite] = rec;
     });
   }
-  return { sheet: st, byName, byDevice, byToken, list };
+  return { sheet: st, byName, byDevice, byToken, byInvite, list };
 }
 
 function students_() {
@@ -311,20 +326,25 @@ function students_() {
 const newToken_ = () => Utilities.getUuid().replace(/-/g, "").slice(0, 16);
 const cleanToken_ = (t) => String(t || "").replace(/[^a-z0-9]/gi, "").slice(0, 32);
 
-// Кожному студентові — особистий код доступу; наявним студентам доступ відкритий одразу
+// Кожному студентові — код доступу (для входу з пристрою) і одноразове запрошення (для посилання).
+// Запрошення анулюється після першого входу; нове з'явиться, якщо очистити «Посилання використано».
+// Наявним студентам доступ відкривається одразу.
 function ensureTokens_() {
   const st = siteSheet_(SHEET_STUDENTS);
   if (!st || st.getLastRow() < 2) return;
   const n = st.getLastRow() - 1;
   if (!st.getRange(2, C_ACCESS).getDataValidation()) st.getRange(2, C_ACCESS, n, 1).insertCheckboxes();
-  const rows = st.getRange(2, 1, n, C_ACCESS).getValues();
+  const rows = st.getRange(2, 1, n, C_INVITED).getValues();
   let changed = false;
   rows.forEach((r) => {
     if (!String(r[C_NAME - 1]).trim()) return;
-    if (!String(r[C_TOKEN - 1]).trim()) { r[C_TOKEN - 1] = newToken_(); r[C_ACCESS - 1] = true; changed = true; }
+    if (!String(r[C_TOKEN - 1]).trim()) {
+      r[C_TOKEN - 1] = newToken_(); r[C_ACCESS - 1] = true; changed = true;
+    }
+    if (!String(r[C_INVITE - 1]).trim() && !r[C_INVITED - 1]) { r[C_INVITE - 1] = newToken_(); changed = true; }
   });
   if (changed) {
-    st.getRange(2, C_TOKEN, n, 2).setValues(rows.map((r) => [r[C_TOKEN - 1], r[C_ACCESS - 1] === true]));
+    st.getRange(2, C_TOKEN, n, 4).setValues(rows.map((r) => [r[C_TOKEN - 1], r[C_ACCESS - 1] === true, r[C_INVITE - 1], r[C_INVITED - 1]]));
   }
 }
 
@@ -336,13 +356,20 @@ function whoByToken_(token, reg) {
   return rec ? { name: rec.name, ok: rec.access && !rec.blocked, rec } : null;
 }
 
+// Перемикач «Вхід лише для студентів» з аркуша «Налаштування»
+function gateOn_() {
+  const se = siteSheet_(SHEET_SETTINGS);
+  if (!se || se.getLastRow() < 2) return false;
+  return se.getRange(2, 1, se.getLastRow() - 1, 2).getValues().some((r) => String(r[0]).trim() === SET_GATE && String(r[1]).trim() === "Так");
+}
+
 // Аркуш «Посилання»: особисте посилання для кожного студента (для адміністратора)
 function writeLinks_() {
   const site = site_();
   let sh = site.getSheetByName(SHEET_LINKS);
   if (!sh) {
     sh = site.insertSheet(SHEET_LINKS);
-    sh.getRange(1, 1, 1, 3).setValues([["Студент", "Особисте посилання", "Доступ"]]).setFontWeight("bold");
+    sh.getRange(1, 1, 1, 3).setValues([["Студент", "Одноразове посилання", "Доступ"]]).setFontWeight("bold");
     sh.setFrozenRows(1);
     sh.setColumnWidth(1, 220);
     sh.setColumnWidth(2, 520);
@@ -350,7 +377,9 @@ function writeLinks_() {
   const reg = registry_();
   const rows = reg.list.map((name) => {
     const r = reg.byName[name];
-    return [name, r.token ? SITE_URL + "vhid?k=" + r.token : "", r.access ? (r.blocked ? "заблоковано" : "так") : "ні"];
+    const link = r.invite ? SITE_URL + "vhid?k=" + r.invite
+      : r.invited ? "використано " + (r.invited instanceof Date ? Utilities.formatDate(r.invited, Session.getScriptTimeZone(), "dd.MM.yyyy HH:mm") : r.invited) : "";
+    return [name, link, r.access ? (r.blocked ? "заблоковано" : "так") : "ні"];
   });
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 3).clearContent();
   if (rows.length) sh.getRange(2, 1, rows.length, 3).setValues(rows);
@@ -487,7 +516,7 @@ function processAccess_() {
 }
 
 // ============================================================================
-// Ф4 — заявки на вільний день
+// F4 — заявки на вільний день
 // ============================================================================
 const dayKey_ = (d) => Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM-dd");
 function parseDay_(s) {
@@ -659,7 +688,7 @@ function onLibEdit(e) {
 // Встановлюваний тригер для таблиці «Сайт»
 function onSiteEdit(e) { if (e && e.range) handleSiteEdit_(e); }
 
-// Встановлюваний тригер для таблиці «Ф4»: рішення змінилося — оновлюємо «По днях» і публічну таблицю
+// Встановлюваний тригер для таблиці «F4»: рішення змінилося — оновлюємо «По днях» і публічну таблицю
 function onF4Edit(e) {
   if (!e || !e.range) return;
   const sh = e.range.getSheet();
@@ -667,7 +696,7 @@ function onF4Edit(e) {
   if (e.range.getColumn() <= 6 && e.range.getLastColumn() >= 6) {
     for (let r = Math.max(e.range.getRow(), 2); r <= e.range.getLastRow(); r++) {
       const v = String(sh.getRange(r, 6).getValue()).trim();
-      if (v === F4_YES || v === F4_NO) logEvent_("Ф4: " + v.toLowerCase(), Utilities.formatDate(new Date(sh.getRange(r, 4).getValue()), Session.getScriptTimeZone(), "dd.MM.yyyy"), sh.getRange(r, 3).getValue(), "", "", "");
+      if (v === F4_YES || v === F4_NO) logEvent_("F4: " + v.toLowerCase(), Utilities.formatDate(new Date(sh.getRange(r, 4).getValue()), Session.getScriptTimeZone(), "dd.MM.yyyy"), sh.getRange(r, 3).getValue(), "", "", "");
     }
   }
   rebuildF4_();
@@ -697,7 +726,7 @@ function handleSiteEdit_(e) {
       }
     }
     // Новий студент, доступ, блокування — оновлюємо коди й «Посилання»
-    if (e.range.getColumn() <= C_ACCESS && e.range.getLastColumn() >= C_NAME) { ensureTokens_(); writeLinks_(); }
+    if (e.range.getColumn() <= C_INVITED && e.range.getLastColumn() >= C_NAME) { ensureTokens_(); writeLinks_(); }
   }
   if (name === SHEET_ACCESS) processAccess_();
 }
@@ -716,7 +745,7 @@ function doGet(e) {
     const dev = cleanDev_(p.device);
     const b = blockOf_(dev);
     const who = whoByToken_(p.token);
-    return json_({ ok: true, block: b === BLOCK_SITE ? "site" : b ? "books" : "",
+    return json_({ ok: true, block: b === BLOCK_SITE ? "site" : b ? "books" : "", gate: gateOn_(),
                    who: !cleanToken_(p.token) ? "" : who && who.ok ? "ok" : "none", name: who && who.ok ? who.name : "" });
   }
   if (p.students) return json_({ ok: true, students: students_() });
@@ -756,15 +785,21 @@ function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    // Вхід за особистим посиланням
+    // Вхід за одноразовим посиланням: запрошення анулюється, пристрій отримує код доступу
     if (d.action === "claim") {
       const reg = registry_();
-      const who = whoByToken_(d.token, reg);
-      if (!who) { logEvent_("Невірне посилання", "", "", dev, type, ""); return json_({ ok: false, error: "Посилання недійсне. Попроси нове в адміністратора." }); }
-      if (!who.ok) return json_({ ok: false, error: "Доступ для «" + who.name + "» закрито. Звернись до адміністратора." });
-      bindIfFree_(reg, who.rec, dev, type, "вхід за особистим посиланням");
-      logEvent_("Вхід за посиланням", "", who.name, dev, type, ua);
-      return json_({ ok: true, name: who.name });
+      const code = cleanToken_(d.token);
+      const rec = code && reg.byInvite[code];
+      if (!rec) {
+        logEvent_("Недійсне посилання", "", "", dev, type, "");
+        return json_({ ok: false, error: "Це посилання вже використане або недійсне. Обери себе зі списку нижче — адміністратор підтвердить." });
+      }
+      if (!rec.access || rec.blocked) return json_({ ok: false, error: "Доступ для «" + rec.name + "» закрито. Звернись до адміністратора." });
+      reg.sheet.getRange(rec.row, C_INVITE, 1, 2).setValues([["", new Date()]]);
+      bindIfFree_(reg, rec, dev, type, "вхід за особистим посиланням");
+      logEvent_("Вхід за посиланням", "", rec.name, dev, type, ua);
+      writeLinks_();
+      return json_({ ok: true, name: rec.name, token: rec.token });
     }
 
     // Запит доступу без посилання
@@ -783,7 +818,7 @@ function doPost(e) {
       return json_({ ok: true, req: id });
     }
 
-    // Ф4: заявка на вільний день
+    // F4: заявка на вільний день
     if (d.action === "f4") {
       const who = whoByToken_(d.token);
       if (!who || !who.ok) return json_({ ok: false, auth: false, error: "Спершу підтверди, хто ти" });
@@ -798,11 +833,15 @@ function doPost(e) {
       }
       const q = f4_().getSheetByName(SHEET_F4);
       q.appendRow([newToken_(), new Date(), who.name, day, reason, F4_WAIT, ""]);
-      logEvent_("Ф4: заявка", Utilities.formatDate(day, Session.getScriptTimeZone(), "dd.MM.yyyy"), who.name, dev, type, "");
+      logEvent_("F4: заявка", Utilities.formatDate(day, Session.getScriptTimeZone(), "dd.MM.yyyy"), who.name, dev, type, "");
       rebuildF4_();
       return json_({ ok: true, mine: myF4_(who.name) });
     }
 
+    if (gateOn_() && (d.action === "take" || d.action === "return")) {
+      const who = whoByToken_(d.token);
+      if (!who || !who.ok) return json_({ ok: false, auth: false, error: "Спершу підтверди, хто ти" });
+    }
     if (d.books) saveCatalog_(d.books);
     const log = lib_().getSheetByName(SHEET_LOG);
     const loans = loans_();

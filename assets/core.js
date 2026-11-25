@@ -2,9 +2,9 @@
 // IP не збираємо: Apps Script його не бачить, а в осередку всі в одному Wi-Fi.
 const UAL_API_URL = "https://script.google.com/macros/s/AKfycbzsEvrB_eoq8d1ABNl3M9M3WNXznP-2vhiNuFHJfIkXLa4m-QPLrCqORxDKFRwOMYE/exec";
 
-// Вхід лише для студентів: без підтвердженої особи сайт відправляє на сторінку «Хто ти?» (vhid).
-// Вмикається після оновлення Apps Script (setup), бо старий бекенд кодів доступу не знає.
-const UAL_GATE = false;
+// Вхід лише для студентів: вмикається перемикачем «Вхід лише для студентів» у таблиці «УАЛ · Сайт → Налаштування».
+// Без підтвердженої особи сайт тоді відправляє на сторінку «Хто ти?» (vhid). Останній стан перемикача
+// пам'ятається в браузері, тож сторінки не блимають.
 
 const UAL = (() => {
   const get = (k) => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } };
@@ -28,7 +28,8 @@ const UAL = (() => {
     document.documentElement.style.visibility = "hidden";
     location.replace("vhid?next=" + encodeURIComponent((here || "./") + location.search + location.hash));
   };
-  if (UAL_GATE && !token) toVhid();
+  let gate = get("ual-gate");                    // "1" — вхід обов'язковий, "0" — ні, "" — ще не знаємо
+  if (gate === "1" && !token) toVhid();
   function setIdentity(t, name) { token = t; me = name; set("ual-token", t); set("ual-me", name); }
   function clearIdentity() { token = ""; me = ""; try { localStorage.removeItem("ual-token"); localStorage.removeItem("ual-me"); } catch (e) {} }
 
@@ -90,8 +91,10 @@ const UAL = (() => {
       .then((r) => {
         if (!r || !r.ok) return;
         set("ual-block", JSON.stringify({ block: r.block || "", t: Date.now() }));
+        gate = r.gate === true ? "1" : "0"; set("ual-gate", gate);
         if (r.who === "ok" && r.name && r.name !== me) { me = r.name; set("ual-me", me); }
-        if (r.who === "none" && UAL_GATE) { clearIdentity(); toVhid(); return; }
+        if (r.who === "none") clearIdentity();
+        if (gate === "1" && !token) { toVhid(); return; }
         if (r.block === "site") showBlocked();
         else if (document.getElementById("ual-blocked")) location.reload();
       })
@@ -102,6 +105,14 @@ const UAL = (() => {
   // Періодична перевірка лише для видимої вкладки
   setInterval(() => { if (document.visibilityState === "visible") checkBlock(); }, CHECK_MS);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkBlock(); });
+
+  // Перший візит без коду, а стан перемикача ще невідомий: ховаємо сторінку, поки не спитаємо сервер
+  if (!token && !onVhid && gate === "") {
+    document.documentElement.style.visibility = "hidden";
+    const show = () => { if (!(gate === "1" && !token)) document.documentElement.style.visibility = ""; };
+    setTimeout(show, 4000);
+    checkBlock(true).finally(show);
+  }
 
   return {
     device, ua, type, logView, checkBlock, setIdentity, clearIdentity,

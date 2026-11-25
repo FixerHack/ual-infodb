@@ -4,6 +4,11 @@
 const SECTIONS = [
   { title: "Головна", home: true, pages: [{ href: "./", title: "Головна" }, { href: "vhid", title: "Хто ти?", hidden: true }] },
   {
+    title: "F4", icon: "📝", accent: "#e07a5f",
+    desc: "Заявка на вільний день і статус твоїх заявок",
+    pages: [{ href: "f4", title: "Заявка на вільний день" }],
+  },
+  {
     title: "Таймлайн", icon: "📅", accent: "#f7aa3a",
     desc: "Модулі року, вишколи, канікули, розклад англійської та спорядження",
     pages: [
@@ -59,11 +64,6 @@ const SECTIONS = [
     title: "Дні народження", icon: "🎂", accent: "#c9d52a",
     desc: "Календар днів народження студентів і найближчі свята",
     pages: [{ href: "dni-narodzhennia", title: "Дні народження" }],
-  },
-  {
-    title: "Ф4", icon: "📝", accent: "#e07a5f",
-    desc: "Заявка на вільний день і статус твоїх заявок",
-    pages: [{ href: "f4", title: "Заявка на вільний день" }],
   },
 ];
 window.UAL_SECTIONS = SECTIONS;
