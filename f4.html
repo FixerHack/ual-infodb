@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=20261142">
+  <link rel="stylesheet" href="assets/style.css?v=20261144">
 </head>
 <body>
 <main>
@@ -39,8 +39,8 @@
     </section>
   </div>
 </main>
-<script src="assets/core.js?v=20261142"></script>
-<script src="assets/library.js?v=20261141"></script>
+<script src="assets/core.js?v=20261144"></script>
+<script src="assets/library.js?v=20261144"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -76,13 +76,20 @@ async function load() {
     const r = await (await fetch(UAL_API_URL + "?f4=1&token=" + encodeURIComponent(UAL.token) + "&t=" + Date.now())).json();
     if (r.auth === false) { UAL.clearIdentity(); return needLogin(); }
     if (!r.ok) throw new Error(r.error);
+    if (r.role === "Ментор") return mentorView();
     renderMine(r.mine);
   } catch (e) {
     $("mine").innerHTML = `<p class="detail-note">Не вдалося завантажити заявки. Онови сторінку трохи пізніше.</p>`;
   }
 }
 
+function mentorView() {
+  $("form").innerHTML = `<h2>F4 — для студентів</h2><p>Ментори переглядають сайт, а рішення щодо заявок ухвалюють у таблиці F4.</p>`;
+  $("mine").closest(".f4-mine").hidden = true;
+}
+
 if (!UAL.token) needLogin();
+else if (UAL.role === "Ментор") mentorView();
 else {
   $("who").innerHTML = `Подаєш як <b>${esc(UAL.me || "студент")}</b> · <a href="vhid?next=f4">не ти?</a>`;
   load();
@@ -106,6 +113,6 @@ else {
   });
 }
 </script>
-<script src="assets/site.js?v=20261143"></script>
+<script src="assets/site.js?v=20261144"></script>
 </body>
 </html>

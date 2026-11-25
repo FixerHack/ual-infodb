@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=20261142">
+  <link rel="stylesheet" href="assets/style.css?v=20261144">
 </head>
 <body>
 <main>
@@ -22,11 +22,11 @@
   </div>
 </div>
 
-<script src="assets/core.js?v=20261142"></script>
+<script src="assets/core.js?v=20261144"></script>
 <script src="assets/students.js?v=20261126"></script>
 <script src="assets/library-data.js?v=20261130"></script>
 <script src="assets/library-data-2.js?v=20261135"></script>
-<script src="assets/library.js?v=20261141"></script>
+<script src="assets/library.js?v=20261144"></script>
 <script>
 const id = new URLSearchParams(location.search).get("id");
 const book = BOOKS.find((b) => b.id === id);
@@ -119,32 +119,34 @@ const closeModal = () => { modal.hidden = true; };
 modal.addEventListener("click", (e) => { if (e.target === modal || e.target.closest("[data-close]")) closeModal(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
+// Хто ти — невідомо: спершу підтвердити особу
+function askIdentify() {
+  openModal(`
+    <h3 id="modal-title">Спершу підтверди, хто ти</h3>
+    <p>Книжку записують на того, хто її бере. Відкрий своє особисте посилання або обери себе на сторінці «Хто ти?».</p>
+    <div class="modal-actions"><button class="btn ghost" type="button" data-close>Скасувати</button><a class="btn" href="vhid?next=${encodeURIComponent("knyha?id=" + book.id)}">Підтвердити →</a></div>`);
+}
+
+// Взяти — на себе. Адмін може записати книжку на будь-кого.
 function askTake() {
+  if (!UAL.token) return askIdentify();
+  const admin = UAL.role === "Адмін";
+  const first = (n) => n.split(" ")[1] || n;
   openModal(`
     <h3 id="modal-title">Взяти «${book.title}»</h3>
-    <p class="detail-note" style="margin-top:0">Обери своє ім'я зі списку студентів.</p>
-    <select id="who" class="field"><option value="">— Обери себе —</option>${[...students].sort((a, b) => a.localeCompare(b, "uk")).map((s) => `<option${s === Library.lastName() ? " selected" : ""}>${s}</option>`).join("")}</select>
-    <div class="modal-actions"><button class="btn ghost" type="button" data-close>Скасувати</button><button class="btn" type="button" id="ok">Підтвердити</button></div>`);
-  document.getElementById("who").focus();
+    ${admin
+      ? `<p class="detail-note" style="margin-top:0">Ти адмін — можеш записати книжку на будь-кого.</p>
+         <select id="who" class="field">${[...students].sort((a, b) => a.localeCompare(b, "uk")).map((s) => `<option${s === UAL.me ? " selected" : ""}>${s}</option>`).join("")}</select>`
+      : `<p>Книжку буде записано на тебе — <b>${UAL.me}</b>.</p>`}
+    <div class="modal-actions"><button class="btn ghost" type="button" data-close>Скасувати</button><button class="btn" type="button" id="ok">Беру</button></div>`);
   document.getElementById("ok").addEventListener("click", async () => {
-    const name = document.getElementById("who").value;
-    if (!name) return toast("Спочатку обери своє ім'я", "err");
-    await send(() => Library.take(book, name), `Записали: книжка у тебе, ${name.split(" ")[1] || name}!`, name);
+    const name = admin ? document.getElementById("who").value : UAL.me;
+    await send(() => Library.take(book, name), name === UAL.me ? `Записали: книжка у тебе, ${first(name)}!` : `Записали на ${name}.`);
   });
 }
 
-// Ім'я не схоже на звичне для цього пристрою — перепитуємо
-function askConfirm(warning, name) {
-  openModal(`
-    <h3 id="modal-title">Точно ти?</h3>
-    <div class="warn-box">⚠️ ${warning}</div>
-    <p class="detail-note">Можна продовжити, якщо береш з чужого телефона. У журналі буде позначка, що попередження підтвердили.</p>
-    <div class="modal-actions"><button class="btn ghost" type="button" data-close>Скасувати</button><button class="btn" type="button" id="ok">Так, це я</button></div>`);
-  document.getElementById("ok").addEventListener("click", () =>
-    send(() => Library.take(book, name, true), `Записали: книжка у тебе, ${name.split(" ")[1] || name}!`));
-}
-
 function askReturn() {
+  if (!UAL.token) return askIdentify();
   const l = loans[book.id];
   openModal(`
     <h3 id="modal-title">Повернути «${book.title}»?</h3>
@@ -153,7 +155,7 @@ function askReturn() {
   document.getElementById("ok").addEventListener("click", () => send(() => Library.giveBack(book), "Дякуємо! Книжка знову на полиці."));
 }
 
-async function send(fn, okMsg, name) {
+async function send(fn, okMsg) {
   if (busy) return;
   busy = true;
   const btn = document.getElementById("ok");
@@ -161,12 +163,12 @@ async function send(fn, okMsg, name) {
   const r = await fn();
   busy = false;
   if (r.loans) loans = r.loans;
-  if (r.needConfirm) return askConfirm(r.warning, name);
+  if (r.auth === false) { UAL.clearIdentity(); return askIdentify(); }
   closeModal();
   renderStatus();
   toast(r.ok ? okMsg : r.error, r.ok ? "ok" : "err");
 }
 </script>
-<script src="assets/site.js?v=20261143"></script>
+<script src="assets/site.js?v=20261144"></script>
 </body>
 </html>

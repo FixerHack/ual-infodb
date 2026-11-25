@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=20261142">
+  <link rel="stylesheet" href="assets/style.css?v=20261144">
 </head>
 <body>
 <main>
@@ -17,12 +17,12 @@
     <section class="hero">
       <span class="eyebrow">Лише для студентів осередку</span>
       <h1>Хто ти?</h1>
-      <p class="lead">Сайт відкритий тільки для студентів УАЛ Львів. Найпростіше — відкрити особисте посилання, яке надіслав адміністратор (воно одноразове).</p>
+      <p class="lead">Сайт відкритий тільки для студентів УАЛ Львів. Найпростіше — відкрити особисте посилання, яке надіслав адміністратор. Воно працює на кількох твоїх пристроях (у межах ліміту).</p>
     </section>
     <section class="id-box card" id="box" aria-live="polite"></section>
   </div>
 </main>
-<script src="assets/core.js?v=20261142"></script>
+<script src="assets/core.js?v=20261144"></script>
 <script src="assets/students.js?v=20261126"></script>
 <script>
 const box = document.getElementById("box");
@@ -49,7 +49,7 @@ async function apiGet(q) {
 
 function welcome(name) {
   box.innerHTML = `<div class="id-ok">👋</div><h2>Привіт, ${esc(name.split(" ")[1] || name)}!</h2>
-    <p>Тебе впізнано як <b>${esc(name)}</b>. Більше нічого робити не треба — цей пристрій запам'ятано.</p>
+    <p>Тебе впізнано як <b>${esc(name)}</b>. Більше нічого робити не треба — цей пристрій запам'ятано. На інших своїх пристроях просто відкрий те саме посилання.</p>
     <a class="btn" href="${esc(next)}">Перейти на сайт →</a>`;
   setTimeout(() => location.replace(next), 1600);
 }
@@ -59,7 +59,7 @@ async function claim(k) {
   history.replaceState(null, "", "vhid" + (params.get("next") ? "?next=" + encodeURIComponent(next) : ""));
   box.innerHTML = `<p class="id-wait">Перевіряємо посилання…</p>`;
   const r = await api({ action: "claim", token: k });
-  if (r.ok && r.token) { UAL.setIdentity(r.token, r.name); set(REQ_KEY, ""); welcome(r.name); }
+  if (r.ok && r.token) { UAL.setIdentity(r.token, r.name, r.role); set(REQ_KEY, ""); welcome(r.name); }
   else { form(r.error); }
 }
 
@@ -120,6 +120,6 @@ else if (UAL.token) known();
 else if (req && req.id) pending(req.id, req.name);
 else form();
 </script>
-<script src="assets/site.js?v=20261143"></script>
+<script src="assets/site.js?v=20261144"></script>
 </body>
 </html>

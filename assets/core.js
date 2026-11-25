@@ -20,7 +20,7 @@ const UAL = (() => {
   }
 
   // Хто ти: особистий код доступу (з посилання або після підтвердження адміністратором)
-  let token = get("ual-token"), me = get("ual-me");
+  let token = get("ual-token"), me = get("ual-me"), role = get("ual-role");
   const here = location.pathname.split("/").pop().replace(/\.html$/, "");
   const onVhid = here === "vhid";
   const toVhid = () => {
@@ -30,8 +30,8 @@ const UAL = (() => {
   };
   let gate = get("ual-gate");                    // "1" — вхід обов'язковий, "0" — ні, "" — ще не знаємо
   if (gate === "1" && !token) toVhid();
-  function setIdentity(t, name) { token = t; me = name; set("ual-token", t); set("ual-me", name); }
-  function clearIdentity() { token = ""; me = ""; try { localStorage.removeItem("ual-token"); localStorage.removeItem("ual-me"); } catch (e) {} }
+  function setIdentity(t, name, r) { token = t; me = name; role = r || role || ""; set("ual-token", t); set("ual-me", name); set("ual-role", role); }
+  function clearIdentity() { token = ""; me = ""; role = ""; try { ["ual-token", "ual-me", "ual-role"].forEach((k) => localStorage.removeItem(k)); } catch (e) {} }
 
   // «iPhone · Safari», «Windows · Chrome» …
   const u = navigator.userAgent;
@@ -86,13 +86,18 @@ const UAL = (() => {
     if (cached.block === "site") showBlocked();
     if (checking || (!force && Date.now() - (cached.t || 0) < CHECK_MS)) return Promise.resolve();
     checking = true;
-    return fetch(UAL_API_URL + "?check=1&device=" + encodeURIComponent(device) + "&token=" + encodeURIComponent(token) + "&t=" + Date.now())
+    return fetch(UAL_API_URL + "?check=1&device=" + encodeURIComponent(device) + "&token=" + encodeURIComponent(token) +
+        "&type=" + encodeURIComponent(type) + "&ua=" + encodeURIComponent(ua) + "&t=" + Date.now())
       .then((r) => r.json())
       .then((r) => {
         if (!r || !r.ok) return;
         set("ual-block", JSON.stringify({ block: r.block || "", t: Date.now() }));
         gate = r.gate === true ? "1" : "0"; set("ual-gate", gate);
-        if (r.who === "ok" && r.name && r.name !== me) { me = r.name; set("ual-me", me); }
+        if (r.newToken) { token = r.newToken; set("ual-token", token); }   // перехід зі старого входу на код пристрою
+        if (r.who === "ok") {
+          if (r.name && r.name !== me) { me = r.name; set("ual-me", me); }
+          if (r.role && r.role !== role) { role = r.role; set("ual-role", role); }
+        }
         if (r.who === "none") clearIdentity();
         if (gate === "1" && !token) { toVhid(); return; }
         if (r.block === "site") showBlocked();
@@ -116,7 +121,7 @@ const UAL = (() => {
 
   return {
     device, ua, type, logView, checkBlock, setIdentity, clearIdentity,
-    get token() { return token; }, get me() { return me; },
+    get token() { return token; }, get me() { return me; }, get role() { return role; },
     lastName: () => get("ual-last-name"),
     rememberName: (n) => set("ual-last-name", n),
   };
