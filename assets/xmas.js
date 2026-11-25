@@ -377,8 +377,7 @@
     if (!hero) return;
     const sec = document.createElement("section");
     sec.className = "xmas-card";
-    sec.innerHTML = `<canvas class="xmas-tree" aria-label="Анімована ASCII-ялинка з написом ${MESSAGE}" role="img"></canvas>
-      <div class="xmas-caption"><b>${XMAS ? "З Різдвом Христовим!" : "З Новим роком!"}</b><span>Натисни на ялинку, щоб вона виросла знову</span></div>`;
+    sec.innerHTML = `<canvas class="xmas-tree" title="Натисни, щоб ялинка виросла знову" aria-label="Анімована ASCII-ялинка з написом ${MESSAGE}" role="img"></canvas>`;
     hero.after(sec);
     const cv = sec.querySelector("canvas"), ctx = cv.getContext("2d");
     const mobile = matchMedia("(max-width: 640px)").matches;
