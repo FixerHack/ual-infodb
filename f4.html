@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>УАЛ | Ф4</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css?v=20261141">
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Ф4</span>
+      <h1>Заявка на вільний день</h1>
+      <p class="lead">Обери день і коротко поясни причину. Адміністрація розгляне заявку — статус з'явиться тут.</p>
+    </section>
+
+    <section class="f4-grid">
+      <form class="card f4-form" id="form" novalidate>
+        <div class="f4-who" id="who"></div>
+        <label class="f4-label" for="date">День</label>
+        <input class="field" type="date" id="date" required>
+        <div class="f4-day" id="day"></div>
+        <label class="f4-label" for="reason">Причина</label>
+        <textarea class="field" id="reason" rows="5" maxlength="600" required placeholder="Наприклад: їду на весілля сестри до Тернополя, повернуся в неділю ввечері"></textarea>
+        <div class="f4-count"><span id="count">0</span> / 600</div>
+        <p class="detail-note">Причину бачить лише адміністрація. Іншим студентам видно тільки дату й рішення.</p>
+        <button class="btn" type="submit" id="send">Подати заявку</button>
+      </form>
+
+      <div class="f4-mine">
+        <div class="section-title"><span class="num">01</span><h2>Мої заявки</h2></div>
+        <div id="mine"><div class="skeleton"></div></div>
+      </div>
+    </section>
+  </div>
+</main>
+<script src="assets/core.js?v=20261141"></script>
+<script src="assets/library.js?v=20261141"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pad = (n) => String(n).padStart(2, "0");
+const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const nice = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("uk-UA", { weekday: "long", day: "numeric", month: "long" }); };
+const STATUS = { "Дозволено": ["yes", "✅ Дозволено"], "Заборонено": ["no", "❌ Заборонено"], "На розгляді": ["wait", "⏳ На розгляді"] };
+
+const today = new Date();
+$("date").min = iso(today);
+$("date").addEventListener("input", () => { $("day").textContent = $("date").value ? nice($("date").value) : ""; });
+$("reason").addEventListener("input", () => { $("count").textContent = $("reason").value.length; });
+
+function needLogin() {
+  $("form").innerHTML = `<h2>Спершу підтверди, хто ти</h2><p>Заявку можна подати лише від свого імені.</p>
+    <a class="btn" href="vhid?next=f4">Підтвердити →</a>`;
+  $("mine").innerHTML = `<p class="detail-note">Тут з'являться твої заявки.</p>`;
+}
+
+function renderMine(list) {
+  $("mine").innerHTML = list && list.length
+    ? list.map((r) => {
+        const [cls, label] = STATUS[r.status] || STATUS["На розгляді"];
+        return `<article class="f4-item ${cls}">
+          <div class="f4-item-top"><b>${esc(nice(r.date))}</b><span class="f4-st ${cls}">${label}</span></div>
+          <p>${esc(r.reason)}</p>${r.comment ? `<div class="f4-comment">💬 ${esc(r.comment)}</div>` : ""}</article>`;
+      }).join("")
+    : `<p class="detail-note">Заявок ще немає.</p>`;
+}
+
+async function load() {
+  try {
+    const r = await (await fetch(UAL_API_URL + "?f4=1&token=" + encodeURIComponent(UAL.token) + "&t=" + Date.now())).json();
+    if (r.auth === false) { UAL.clearIdentity(); return needLogin(); }
+    if (!r.ok) throw new Error(r.error);
+    renderMine(r.mine);
+  } catch (e) {
+    $("mine").innerHTML = `<p class="detail-note">Не вдалося завантажити заявки. Онови сторінку трохи пізніше.</p>`;
+  }
+}
+
+if (!UAL.token) needLogin();
+else {
+  $("who").innerHTML = `Подаєш як <b>${esc(UAL.me || "студент")}</b> · <a href="vhid?next=f4">не ти?</a>`;
+  load();
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!$("date").value) return $("date").focus();
+    if ($("reason").value.trim().length < 5) return $("reason").focus();
+    const btn = $("send");
+    btn.disabled = true; btn.textContent = "Надсилаємо…";
+    let r;
+    try {
+      r = await (await fetch(UAL_API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "f4", token: UAL.token, date: $("date").value, reason: $("reason").value.trim(), device: UAL.device, ua: UAL.ua, type: UAL.type }) })).json();
+    } catch (err) { r = { ok: false, error: "Не вдалося надіслати. Перевір інтернет і спробуй ще раз." }; }
+    btn.disabled = false; btn.textContent = "Подати заявку";
+    if (r.auth === false) { UAL.clearIdentity(); return needLogin(); }
+    if (r.mine) renderMine(r.mine);
+    if (!r.ok) return toast(r.error, "err");
+    $("form").reset(); $("day").textContent = ""; $("count").textContent = "0";
+    toast("Заявку подано! Чекай на рішення.", "ok");
+  });
+}
+</script>
+<script src="assets/site.js?v=20261141"></script>
+</body>
+</html>

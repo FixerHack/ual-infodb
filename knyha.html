@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=20261138">
+  <link rel="stylesheet" href="assets/style.css?v=20261141">
 </head>
 <body>
 <main>
@@ -22,11 +22,11 @@
   </div>
 </div>
 
-<script src="assets/core.js?v=20261128"></script>
+<script src="assets/core.js?v=20261141"></script>
 <script src="assets/students.js?v=20261126"></script>
 <script src="assets/library-data.js?v=20261130"></script>
 <script src="assets/library-data-2.js?v=20261135"></script>
-<script src="assets/library.js?v=20261136"></script>
+<script src="assets/library.js?v=20261141"></script>
 <script>
 const id = new URLSearchParams(location.search).get("id");
 const book = BOOKS.find((b) => b.id === id);
@@ -34,14 +34,14 @@ const page = document.getElementById("page");
 let loans = {}, students = STUDENTS, busy = false;
 
 if (!book) {
-  page.innerHTML = `<section class="hero"><h1>Книжку не знайдено</h1><p class="lead">Можливо, посилання застаріло.</p><a class="btn" href="biblioteka.html">← До бібліотеки</a></section>`;
+  page.innerHTML = `<section class="hero"><h1>Книжку не знайдено</h1><p class="lead">Можливо, посилання застаріло.</p><a class="btn" href="biblioteka">← До бібліотеки</a></section>`;
 } else {
   document.body.classList.add("has-actionbar");
   const author = Object.assign({ name: "", bio: [] }, AUTHORS[book.authorId]);
   const others = BOOKS.filter((b) => b.authorId === book.authorId && b.id !== book.id);
   document.title = `УАЛ | ${book.title}`;
   page.innerHTML = `
-    <a class="back-link" href="biblioteka.html">← Усі книжки</a>
+    <a class="back-link" href="biblioteka">← Усі книжки</a>
     <section class="book-hero">
       <div class="bk-cover-col">
         <div class="bk-flip${book.back ? " can-flip" : ""}${book.ratio ? " odd" : ""}" id="flip"${book.ratio ? ` style="aspect-ratio:${book.ratio}"` : ""}>
@@ -53,7 +53,7 @@ if (!book) {
       <div class="bk-main">
         <span class="eyebrow">${book.genre}</span>
         <h1>${book.title}</h1>
-        ${author.name ? `<a class="bk-author" href="${author.bio.length || author.role ? "#author" : "biblioteka.html"}">${author.name}</a>` : ""}
+        ${author.name ? `<a class="bk-author" href="${author.bio.length || author.role ? "#author" : "biblioteka"}">${author.name}</a>` : ""}
         <p class="lead">${book.short}</p>
         <div class="bk-status" id="status"><div class="skeleton"></div></div>
         <dl class="bk-meta">
@@ -80,7 +80,7 @@ if (!book) {
           <h3>${author.name}</h3>
           ${author.role ? `<div class="author-role">${author.role}</div>` : ""}
           <div class="prose">${author.bio.map((p) => `<p>${p}</p>`).join("")}</div>
-          ${others.length ? `<div class="author-more"><b>Ще в бібліотеці:</b> ${others.map((b) => `<a href="knyha.html?id=${b.id}">${b.title}</a>`).join(", ")}</div>` : ""}
+          ${others.length ? `<div class="author-more"><b>Ще в бібліотеці:</b> ${others.map((b) => `<a href="knyha?id=${b.id}">${b.title}</a>`).join(", ")}</div>` : ""}
         </div>
       </div>
     </section>` : ""}`;
@@ -167,6 +167,6 @@ async function send(fn, okMsg, name) {
   toast(r.ok ? okMsg : r.error, r.ok ? "ok" : "err");
 }
 </script>
-<script src="assets/site.js?v=20261140"></script>
+<script src="assets/site.js?v=20261141"></script>
 </body>
 </html>

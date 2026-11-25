@@ -2,71 +2,82 @@
 // Щоб додати сторінку — додай її в SECTIONS (у наявний розділ або новий).
 // hidden: true — сторінка належить розділу, але не показується в підменю.
 const SECTIONS = [
-  { title: "Головна", home: true, pages: [{ href: "index.html", title: "Головна" }] },
+  { title: "Головна", home: true, pages: [{ href: "./", title: "Головна" }, { href: "vhid", title: "Хто ти?", hidden: true }] },
   {
     title: "Таймлайн", icon: "📅", accent: "#f7aa3a",
     desc: "Модулі року, вишколи, канікули, розклад англійської та спорядження",
     pages: [
-      { href: "timeline.html", title: "Таймлайн року" },
-      { href: "angliyska.html", title: "Розклад англійської" },
-      { href: "sporyadzhennia.html", title: "Спорядження на вишкіл" },
+      { href: "timeline", title: "Таймлайн року" },
+      { href: "angliyska", title: "Розклад англійської" },
+      { href: "sporyadzhennia", title: "Спорядження на вишкіл" },
     ],
   },
   {
     title: "Бібліотека", icon: "📚", accent: "#4fb8a8",
     desc: "Книжки осередку: каталог, пошук і журнал, у кого яка книжка",
     pages: [
-      { href: "biblioteka.html", title: "Каталог" },
-      { href: "knyha.html", title: "Книжка", hidden: true },
+      { href: "biblioteka", title: "Каталог" },
+      { href: "knyha", title: "Книжка", hidden: true },
     ],
   },
   {
     title: "Навчання", icon: "🎓", accent: "#8b86d9",
     desc: "Стратегічні теми, кейс-метод і книжки до прочитання",
     pages: [
-      { href: "temy.html", title: "Стратегічні теми" },
-      { href: "keysy.html", title: "Кейси" },
-      { href: "knyzhky.html", title: "Книжки до прочитання" },
+      { href: "temy", title: "Стратегічні теми" },
+      { href: "keysy", title: "Кейси" },
+      { href: "knyzhky", title: "Книжки до прочитання" },
     ],
   },
   {
     title: "«ГЕНОМ» Лідера", icon: "🧬", accent: "#d8a24a",
     desc: "Десять генів особистого лідерства і детальні розбори",
     pages: [
-      { href: "genom.html", title: "Усі гени" },
-      { href: "gen-d.html", title: "D · Decision Making" },
+      { href: "genom", title: "Усі гени" },
+      { href: "gen-d", title: "D · Decision Making" },
     ],
   },
   {
     title: "Самоврядування", icon: "🏛️", accent: "#6c6fe0",
     desc: "Рада осередку, капітани, департаменти, студадмін і правила",
     pages: [
-      { href: "samovryaduvannya.html", title: "Огляд" },
-      { href: "model.html", title: "Освітня модель" },
-      { href: "rada.html", title: "Рада осередку" },
-      { href: "kapitany.html", title: "Капітани" },
-      { href: "departamenty.html", title: "Департаменти" },
-      { href: "studadmin.html", title: "Студадмін і чергові" },
-      { href: "porushennia.html", title: "Порушення правил" },
+      { href: "samovryaduvannya", title: "Огляд" },
+      { href: "model", title: "Освітня модель" },
+      { href: "rada", title: "Рада осередку" },
+      { href: "kapitany", title: "Капітани" },
+      { href: "departamenty", title: "Департаменти" },
+      { href: "studadmin", title: "Студадмін і чергові" },
+      { href: "porushennia", title: "Порушення правил" },
     ],
   },
   {
     title: "Партнерства", icon: "🤝", accent: "#f08da0",
     desc: "Як осередок шукає партнерів і будує з ними співпрацю",
-    pages: [{ href: "partnerstva.html", title: "Партнерства" }],
+    pages: [{ href: "partnerstva", title: "Партнерства" }],
   },
   {
     title: "Дні народження", icon: "🎂", accent: "#c9d52a",
     desc: "Календар днів народження студентів і найближчі свята",
-    pages: [{ href: "dni-narodzhennia.html", title: "Дні народження" }],
+    pages: [{ href: "dni-narodzhennia", title: "Дні народження" }],
+  },
+  {
+    title: "Ф4", icon: "📝", accent: "#e07a5f",
+    desc: "Заявка на вільний день і статус твоїх заявок",
+    pages: [{ href: "f4", title: "Заявка на вільний день" }],
   },
 ];
 window.UAL_SECTIONS = SECTIONS;
 
 (function () {
-  const current = location.pathname.split("/").pop() || "index.html";
-  const section = SECTIONS.find((s) => s.pages.some((p) => p.href === current)) || SECTIONS[0];
-  const page = section.pages.find((p) => p.href === current) || section.pages[0];
+  // Адреси без «.html»: biblioteka.html → biblioteka, index.html → ./
+  if (/\.html$/.test(location.pathname)) {
+    const clean = location.pathname.replace(/index\.html$/, "").replace(/\.html$/, "");
+    history.replaceState(null, "", clean + location.search + location.hash);
+  }
+  const pageOf = (h) => (h.split(/[?#]/)[0].split("/").pop().replace(/\.html$/, "") || "index").replace(/^\.$/, "index");
+  const current = pageOf(location.pathname);
+  const section = SECTIONS.find((s) => s.pages.some((p) => pageOf(p.href) === current)) || SECTIONS[0];
+  const page = section.pages.find((p) => pageOf(p.href) === current) || section.pages[0];
   const visible = section.pages.filter((p) => !p.hidden);
   const tiles = SECTIONS.filter((s) => !s.home);
 
@@ -79,7 +90,7 @@ window.UAL_SECTIONS = SECTIONS;
   header.innerHTML = `
     <div class="wrap">
       <div class="brand">
-        <a class="brand-home" href="index.html" title="На головну"><span class="brand-logo">A</span><span class="brand-ual">УАЛ</span></a>
+        <a class="brand-home" href="./" title="На головну"><span class="brand-logo">A</span><span class="brand-ual">УАЛ</span></a>
         ${section.home ? "" : `<span class="brand-sep">|</span><a class="brand-section" href="${visible[0].href}">${section.title}</a>`}
       </div>
       <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel">
@@ -117,7 +128,7 @@ window.UAL_SECTIONS = SECTIONS;
     const sub = document.createElement("div");
     sub.className = "subnav";
     sub.innerHTML = `<div class="wrap">${visible
-      .map((p) => `<a href="${p.href}"${p.href === current ? ' class="active"' : ""}>${p.title}</a>`)
+      .map((p) => `<a href="${p.href}"${pageOf(p.href) === current ? ' class="active"' : ""}>${p.title}</a>`)
       .join("")}</div>`;
     header.after(sub);
     const row = sub.querySelector(".wrap");
@@ -125,7 +136,7 @@ window.UAL_SECTIONS = SECTIONS;
     if (act) row.scrollLeft = act.offsetLeft - (row.clientWidth - act.offsetWidth) / 2;
 
     // Назад / далі в межах розділу
-    const idx = visible.findIndex((p) => p.href === current);
+    const idx = visible.findIndex((p) => pageOf(p.href) === current);
     if (idx !== -1 && main) {
       const prev = visible[idx - 1];
       const next = visible[idx + 1];
@@ -142,10 +153,18 @@ window.UAL_SECTIONS = SECTIONS;
   footer.className = "site-footer";
   footer.innerHTML = `
     <div class="wrap">
-      <a href="index.html"><b>УАЛ</b> · осередок Львів</a>
+      <a href="./"><b>УАЛ</b> · осередок Львів</a>
       <span class="footer-note">Неофіційний студентський сайт осередку, не є офіційним ресурсом УАЛ</span>
     </div>`;
   document.body.appendChild(footer);
+  // Хто ти — у футері, з можливістю змінити
+  if (typeof UAL !== "undefined" && UAL.me) {
+    const me = document.createElement("a");
+    me.className = "footer-me";
+    me.href = "vhid";
+    me.textContent = "Ти: " + UAL.me;
+    footer.querySelector(".wrap").appendChild(me);
+  }
 
   // Кнопка «Вгору» — з'являється, коли прокрутив сторінку вниз
   const up = document.createElement("button");

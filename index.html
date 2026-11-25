@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=20261138">
+  <link rel="stylesheet" href="assets/style.css?v=20261141">
 </head>
 <body>
 <main>
@@ -39,12 +39,12 @@
     const el = document.getElementById("now-card");
     if (!cur) return;
     el.className = "now-card " + cur[2];
-    el.innerHTML = `<span>Зараз триває</span><b>Модуль ${cur[0]} · ${cur[1]}</b><a href="timeline.html#module-${cur[0]}">Події модуля →</a>`;
+    el.innerHTML = `<span>Зараз триває</span><b>Модуль ${cur[0]} · ${cur[1]}</b><a href="timeline#module-${cur[0]}">Події модуля →</a>`;
     el.hidden = false;
   })();
 </script>
-<script src="assets/core.js?v=20261128"></script>
-<script src="assets/site.js?v=20261140"></script>
+<script src="assets/core.js?v=20261141"></script>
+<script src="assets/site.js?v=20261141"></script>
 <script>
   // Плитки розділів беруться з того ж списку, що й меню (assets/site.js)
   document.getElementById("cats").innerHTML = UAL_SECTIONS.filter((s) => !s.home).map((s) => {
@@ -53,7 +53,7 @@
     const text = `<h3><a href="${pages[0].href}">${s.title}</a></h3><p>${s.desc}</p>`;
     return `<div class="cat${feature ? " cat-feature" : ""}" style="--acc:${s.accent}">
       <span class="cat-ico">${s.icon}</span>
-      ${feature ? `<div class="cat-text">${text}<div class="cat-sub"><a href="biblioteka.html">Відкрити каталог →</a></div></div>` : text}
+      ${feature ? `<div class="cat-text">${text}<div class="cat-sub"><a href="biblioteka">Відкрити каталог →</a></div></div>` : text}
       ${!feature && pages.length > 1 ? `<div class="cat-sub">${pages.map((p) => `<a href="${p.href}">${p.title}</a>`).join("")}</div>` : ""}
     </div>`;
   }).join("");

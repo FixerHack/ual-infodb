@@ -35,11 +35,11 @@ const Library = (() => {
   function isMine(id, loans) {
     const l = loans && loans[id];
     if (!l) return false;
-    const me = typeof UAL !== "undefined" ? UAL.lastName() : "";
-    return (me && l.name === me) || readMine().includes(id);
+    const names = typeof UAL !== "undefined" ? [UAL.me, UAL.lastName()].filter(Boolean) : [];
+    return names.includes(l.name) || readMine().includes(id);
   }
 
-  const dev = () => (typeof UAL !== "undefined" ? { device: UAL.device, ua: UAL.ua, type: UAL.type } : {});
+  const dev = () => (typeof UAL !== "undefined" ? { device: UAL.device, ua: UAL.ua, type: UAL.type, token: UAL.token } : {});
 
   // Каталог для аркуша «Стан книжок» у таблиці
   const catalog = () => (typeof BOOKS === "undefined" ? [] : BOOKS.map((b) => ({
@@ -89,7 +89,7 @@ const Library = (() => {
     return isNaN(d) ? "" : d.toLocaleDateString("uk-UA", { day: "numeric", month: "long" });
   };
 
-  const lastName = () => (typeof UAL !== "undefined" ? UAL.lastName() : "");
+  const lastName = () => (typeof UAL !== "undefined" ? UAL.me || UAL.lastName() : "");
 
   return { demo, state, take, giveBack, fmtDate, lastName, isMine };
 })();

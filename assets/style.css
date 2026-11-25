@@ -967,3 +967,41 @@ html.ual-blocked body { overflow: hidden; }
 @media (max-width: 640px) { .xmas-tree { height: 470px; } }
 .owner-xmas { font: inherit; font-size: .82rem; color: var(--muted); background: var(--card); border: 1px dashed var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
 .owner-xmas:hover { color: var(--violet); border-color: var(--violet); }
+
+/* ---------- «Хто ти?» ---------- */
+.id-box { max-width: 560px; display: grid; gap: 14px; }
+.id-box h2 { margin: 0; }
+.id-box p { margin: 0; color: var(--muted); }
+.id-box .field { width: 100%; height: 50px; border-radius: 14px; padding: 0 14px; }
+.id-ok { font-size: 2.4rem; line-height: 1; }
+.id-wait { color: var(--muted); }
+.id-new { display: flex; align-items: center; gap: 10px; font-size: .95rem; cursor: pointer; }
+.id-new input { width: 18px; height: 18px; accent-color: var(--violet); }
+.id-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.footer-me { color: var(--violet); font-weight: 600; text-decoration: none; }
+
+/* ---------- Ф4 ---------- */
+.f4-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 860px) { .f4-grid { grid-template-columns: 1fr; } }
+.f4-form { display: grid; gap: 10px; }
+.f4-form .field { width: 100%; border-radius: 14px; padding: 12px 14px; font: inherit; }
+.f4-form input.field { height: 50px; }
+.f4-form textarea.field { resize: vertical; min-height: 120px; }
+.f4-who { font-size: .95rem; color: var(--muted); padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.f4-who a { color: var(--violet); }
+.f4-label { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 6px; }
+.f4-day { font-size: .9rem; color: var(--violet); font-weight: 600; min-height: 1.2em; }
+.f4-count { text-align: right; font-size: .8rem; color: var(--muted); margin-top: -4px; }
+.f4-mine .section-title { margin-top: 0; }
+.f4-item { background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
+.f4-item.yes { border-left-color: var(--ok); }
+.f4-item.no { border-left-color: var(--bad); }
+.f4-item.wait { border-left-color: #e0a91b; }
+.f4-item-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.f4-item-top b { text-transform: capitalize; }
+.f4-item p { margin: 8px 0 0; color: var(--muted); font-size: .93rem; white-space: pre-line; }
+.f4-st { font-size: .76rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.f4-st.yes { background: var(--ok-bg); color: var(--ok); }
+.f4-st.no { background: var(--bad-bg); color: var(--bad); }
+.f4-st.wait { background: color-mix(in srgb, #e0a91b 18%, var(--card)); color: #a87b06; }
+.f4-comment { margin-top: 8px; font-size: .88rem; }

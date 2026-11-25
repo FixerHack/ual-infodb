@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="noindex">
+  <title>УАЛ | Хто ти?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css?v=20261141">
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Лише для студентів осередку</span>
+      <h1>Хто ти?</h1>
+      <p class="lead">Сайт відкритий тільки для студентів УАЛ Львів. Найпростіше — відкрити особисте посилання, яке надіслав адміністратор.</p>
+    </section>
+    <section class="id-box card" id="box" aria-live="polite"></section>
+  </div>
+</main>
+<script src="assets/core.js?v=20261141"></script>
+<script src="assets/students.js?v=20261126"></script>
+<script>
+const box = document.getElementById("box");
+const params = new URLSearchParams(location.search);
+const next = (() => { const n = params.get("next") || "./"; return /^[a-z0-9./?=&#%_-]*$/i.test(n) && !n.startsWith("//") ? n : "./"; })();
+const REQ_KEY = "ual-req";
+const get = (k) => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } };
+const set = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let pollTimer = 0;
+
+async function api(payload) {
+  try {
+    const res = payload
+      ? await fetch(UAL_API_URL, { method: "POST", body: JSON.stringify({ ...payload, device: UAL.device, ua: UAL.ua, type: UAL.type }), headers: { "Content-Type": "text/plain;charset=utf-8" } })
+      : null;
+    return await res.json();
+  } catch (e) { return { ok: false, error: "Не вдалося зв'язатися з сервером. Перевір інтернет і спробуй ще раз." }; }
+}
+async function apiGet(q) {
+  try { return await (await fetch(UAL_API_URL + "?" + q + "&t=" + Date.now())).json(); }
+  catch (e) { return { ok: false, error: "Не вдалося зв'язатися з сервером." }; }
+}
+
+function welcome(name) {
+  box.innerHTML = `<div class="id-ok">👋</div><h2>Привіт, ${esc(name.split(" ")[1] || name)}!</h2>
+    <p>Тебе впізнано як <b>${esc(name)}</b>. Більше нічого робити не треба — цей пристрій запам'ятано.</p>
+    <a class="btn" href="${esc(next)}">Перейти на сайт →</a>`;
+  setTimeout(() => location.replace(next), 1600);
+}
+
+// 1. Особисте посилання: vhid?k=КОД
+async function claim(k) {
+  history.replaceState(null, "", "vhid" + (params.get("next") ? "?next=" + encodeURIComponent(next) : ""));
+  box.innerHTML = `<p class="id-wait">Перевіряємо посилання…</p>`;
+  const r = await api({ action: "claim", token: k });
+  if (r.ok) { UAL.setIdentity(k, r.name); set(REQ_KEY, ""); welcome(r.name); }
+  else { form(r.error); }
+}
+
+// 2. Уже впізнаний
+function known() {
+  box.innerHTML = `<div class="id-ok">✅</div><h2>Ти — ${esc(UAL.me || "студент")}</h2>
+    <p>Цей пристрій уже підтверджено.</p>
+    <div class="id-actions"><a class="btn" href="${esc(next)}">На сайт →</a><button class="btn ghost" type="button" id="logout">Це не я</button></div>`;
+  document.getElementById("logout").addEventListener("click", () => { UAL.clearIdentity(); form(); });
+}
+
+// 3. Запит на підтвердження — чекаємо рішення адміністратора
+function pending(id, name) {
+  box.innerHTML = `<div class="id-ok">⏳</div><h2>Запит надіслано</h2>
+    <p>Адміністратор має підтвердити, що ти — <b>${esc(name || "студент")}</b>. Ця сторінка сама оновиться, щойно він це зробить. Можна закрити й повернутися пізніше.</p>
+    <p class="detail-note">Щоб не чекати — попроси в адміністратора особисте посилання.</p>
+    <button class="btn ghost small" type="button" id="cancel">Скасувати запит</button>`;
+  document.getElementById("cancel").addEventListener("click", () => { set(REQ_KEY, ""); clearTimeout(pollTimer); form(); });
+  const poll = async () => {
+    const r = await apiGet("req=" + encodeURIComponent(id));
+    if (r.ok && r.status === "ok" && r.token) { set(REQ_KEY, ""); UAL.setIdentity(r.token, r.name); welcome(r.name); return; }
+    if (r.ok && r.status === "rejected") { set(REQ_KEY, ""); form("Адміністратор відхилив запит. Звернись до нього напряму."); return; }
+    pollTimer = setTimeout(poll, 20000);
+  };
+  poll();
+}
+
+// 4. Форма: обрати себе зі списку або вписати ім'я
+async function form(error) {
+  box.innerHTML = `${error ? `<div class="warn-box">⚠️ ${esc(error)}</div>` : ""}
+    <h2>Обери себе зі списку</h2>
+    <p>Адміністратор отримає запит і підтвердить, що це справді ти.</p>
+    <select id="who" class="field"><option value="">Завантажуємо список…</option></select>
+    <label class="id-new"><input type="checkbox" id="isnew"> Мене немає в списку</label>
+    <input id="newname" class="field" type="text" placeholder="Прізвище та ім'я" maxlength="80" autocomplete="name" hidden>
+    <button class="btn" type="button" id="send">Надіслати запит</button>`;
+  const who = document.getElementById("who"), isnew = document.getElementById("isnew"), nn = document.getElementById("newname");
+  isnew.addEventListener("change", () => { nn.hidden = !isnew.checked; who.disabled = isnew.checked; if (isnew.checked) nn.focus(); });
+  const r = await apiGet("students=1");
+  const list = (r.ok && r.students && r.students.length ? r.students : STUDENTS).slice().sort((a, b) => a.localeCompare(b, "uk"));
+  who.innerHTML = `<option value="">— Обери себе —</option>` + list.map((s) => `<option>${esc(s)}</option>`).join("");
+  document.getElementById("send").addEventListener("click", async (e) => {
+    const name = isnew.checked ? nn.value.replace(/\s+/g, " ").trim() : who.value;
+    if (name.length < 3) return (isnew.checked ? nn : who).focus();
+    e.target.disabled = true; e.target.textContent = "Надсилаємо…";
+    const res = await api({ action: "access", name });
+    if (!res.ok) return form(res.error);
+    set(REQ_KEY, JSON.stringify({ id: res.req, name }));
+    pending(res.req, name);
+  });
+}
+
+const k = (params.get("k") || "").replace(/[^a-z0-9]/gi, "");
+let req = null;
+try { req = JSON.parse(get(REQ_KEY) || "null"); } catch (e) {}
+if (k) claim(k);
+else if (UAL.token) known();
+else if (req && req.id) pending(req.id, req.name);
+else form();
+</script>
+<script src="assets/site.js?v=20261141"></script>
+</body>
+</html>

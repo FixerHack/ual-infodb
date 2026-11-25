@@ -2,6 +2,10 @@
 // IP не збираємо: Apps Script його не бачить, а в осередку всі в одному Wi-Fi.
 const UAL_API_URL = "https://script.google.com/macros/s/AKfycbzsEvrB_eoq8d1ABNl3M9M3WNXznP-2vhiNuFHJfIkXLa4m-QPLrCqORxDKFRwOMYE/exec";
 
+// Вхід лише для студентів: без підтвердженої особи сайт відправляє на сторінку «Хто ти?» (vhid).
+// Вмикається після оновлення Apps Script (setup), бо старий бекенд кодів доступу не знає.
+const UAL_GATE = false;
+
 const UAL = (() => {
   const get = (k) => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } };
   const set = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
@@ -15,6 +19,19 @@ const UAL = (() => {
     } catch (e) { device = ""; }
   }
 
+  // Хто ти: особистий код доступу (з посилання або після підтвердження адміністратором)
+  let token = get("ual-token"), me = get("ual-me");
+  const here = location.pathname.split("/").pop().replace(/\.html$/, "");
+  const onVhid = here === "vhid";
+  const toVhid = () => {
+    if (onVhid) return;
+    document.documentElement.style.visibility = "hidden";
+    location.replace("vhid?next=" + encodeURIComponent((here || "./") + location.search + location.hash));
+  };
+  if (UAL_GATE && !token) toVhid();
+  function setIdentity(t, name) { token = t; me = name; set("ual-token", t); set("ual-me", name); }
+  function clearIdentity() { token = ""; me = ""; try { localStorage.removeItem("ual-token"); localStorage.removeItem("ual-me"); } catch (e) {} }
+
   // «iPhone · Safari», «Windows · Chrome» …
   const u = navigator.userAgent;
   const os = /iPhone/.test(u) ? "iPhone" : /iPad/.test(u) ? "iPad" : /Android/.test(u) ? "Android"
@@ -27,11 +44,11 @@ const UAL = (() => {
   // Перегляд сторінки → «Логи» в таблиці (не частіше ніж раз на 30 хв для тієї самої сторінки)
   function logView() {
     if (!UAL_API_URL || !device) return;
-    const page = (location.pathname.split("/").pop() || "index.html") + location.search;
+    const page = (location.pathname.split("/").pop().replace(/\.html$/, "") || "index") + location.search;
     const key = "ual-view-" + page;
     if (Date.now() - (Number(get(key)) || 0) < 30 * 60 * 1000) return;
     set(key, String(Date.now()));
-    const body = JSON.stringify({ action: "view", page, title: document.title, device, ua, type });
+    const body = JSON.stringify({ action: "view", page, title: document.title, device, ua, type, token });
     try { fetch(UAL_API_URL, { method: "POST", body, mode: "no-cors", keepalive: true }); } catch (e) {}
   }
 
@@ -68,11 +85,13 @@ const UAL = (() => {
     if (cached.block === "site") showBlocked();
     if (checking || (!force && Date.now() - (cached.t || 0) < CHECK_MS)) return Promise.resolve();
     checking = true;
-    return fetch(UAL_API_URL + "?check=1&device=" + encodeURIComponent(device) + "&t=" + Date.now())
+    return fetch(UAL_API_URL + "?check=1&device=" + encodeURIComponent(device) + "&token=" + encodeURIComponent(token) + "&t=" + Date.now())
       .then((r) => r.json())
       .then((r) => {
         if (!r || !r.ok) return;
         set("ual-block", JSON.stringify({ block: r.block || "", t: Date.now() }));
+        if (r.who === "ok" && r.name && r.name !== me) { me = r.name; set("ual-me", me); }
+        if (r.who === "none" && UAL_GATE) { clearIdentity(); toVhid(); return; }
         if (r.block === "site") showBlocked();
         else if (document.getElementById("ual-blocked")) location.reload();
       })
@@ -85,7 +104,8 @@ const UAL = (() => {
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkBlock(); });
 
   return {
-    device, ua, type, logView, checkBlock,
+    device, ua, type, logView, checkBlock, setIdentity, clearIdentity,
+    get token() { return token; }, get me() { return me; },
     lastName: () => get("ual-last-name"),
     rememberName: (n) => set("ual-last-name", n),
   };
