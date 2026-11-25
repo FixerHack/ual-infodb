@@ -164,12 +164,13 @@ window.UAL_SECTIONS = SECTIONS;
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
 
-  // Святковий режим: з 1 грудня до кінця лютого.
+  // Святковий режим: з 25 листопада до кінця лютого.
   // Перевизначення: ?xmas=1 / ?xmas=0 у посиланні або тумблер власника (зберігається в цьому браузері).
   const XMAS_KEY = "ual-xmas";
   const xmasPref = () => { try { return localStorage.getItem(XMAS_KEY) || ""; } catch (e) { return ""; } };
   const force = new URLSearchParams(location.search).get("xmas");
-  const season = [11, 0, 1].includes(new Date().getMonth());
+  const today = new Date(), mon = today.getMonth();
+  const season = [11, 0, 1].includes(mon) || (mon === 10 && today.getDate() >= 25);
   const pref = xmasPref();
   if (force === "1" || (force !== "0" && (pref === "on" || (pref !== "off" && season)))) {
     const x = document.createElement("script");
@@ -188,7 +189,7 @@ window.UAL_SECTIONS = SECTIONS;
       const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(dev), "PBKDF2", false, ["deriveBits"]);
       const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: new TextEncoder().encode("ual-xmas-owner"), iterations: 100000, hash: "SHA-256" }, key, 256);
       if ([...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, "0")).join("") !== OWNER) return;
-      const modes = [["", "авто (1.12 — 28.02)"], ["on", "увімкнено"], ["off", "вимкнено"]];
+      const modes = [["", "авто (25.11 — 28.02)"], ["on", "увімкнено"], ["off", "вимкнено"]];
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "owner-xmas";
