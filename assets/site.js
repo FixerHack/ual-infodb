@@ -193,7 +193,7 @@ window.UAL_SECTIONS = SECTIONS;
   const pref = xmasPref();
   if (force === "1" || (force !== "0" && (pref === "on" || (pref !== "off" && season)))) {
     const x = document.createElement("script");
-    x.src = "assets/xmas.js?v=20261145";
+    x.src = "assets/xmas.js?v=20261146";
     x.defer = true;
     document.body.appendChild(x);
   }

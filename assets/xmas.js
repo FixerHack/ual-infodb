@@ -20,41 +20,23 @@
     cv.setAttribute("aria-hidden", "true");
     document.body.appendChild(cv);
     const ctx = cv.getContext("2d");
-    let W = 0, H = 0, flakes = [], raf = 0, last = 0, on = store.get("ual-snow") !== "off";
+    let W = 0, H = 0, lastW = 0, flakes = [], raf = 0, last = 0, on = store.get("ual-snow") !== "off";
     const dark = matchMedia("(prefers-color-scheme: dark)");
 
-    // Кожна сніжинка — готовий спрайт (символ × розмір × прозорість), малюємо drawImage: це в рази дешевше за fillText
-    const SIZES = [9, 11, 13, 15], ALPHAS = [0.4, 0.55, 0.7, 0.85], CHARS = ["+", "*", "."];
-    let sprites = {}, sdpr = 1;
-    function makeSprites() {
-      sprites = {};
-      const rgb = dark.matches ? "220,228,255" : "108,111,224", k = dark.matches ? 0.75 : 0.45;
-      for (const ch of CHARS) for (const sz of SIZES) for (const a of ALPHAS) {
-        const c = document.createElement("canvas"), w = Math.ceil(sz * 0.8 * sdpr) + 2, h = Math.ceil(sz * 1.2 * sdpr) + 2;
-        c.width = w; c.height = h;
-        const g = c.getContext("2d");
-        g.font = `${sz * sdpr}px Menlo, Consolas, monospace`;
-        g.textAlign = "center"; g.textBaseline = "middle";
-        g.fillStyle = `rgba(${rgb},${a * k})`;
-        g.fillText(ch, w / 2, h / 2);
-        sprites[ch + sz + "|" + a] = { c, w: w / sdpr, h: h / sdpr };
-      }
-    }
-    dark.addEventListener?.("change", makeSprites);
     function resize() {
       const dpr = Math.min(devicePixelRatio || 1, 2);
-      if (dpr !== sdpr || !Object.keys(sprites).length) { sdpr = dpr; makeSprites(); }
       W = innerWidth; H = innerHeight;
       cv.width = W * dpr; cv.height = H * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const n = Math.min(110, Math.round(W * H / 14000));
-      flakes = Array.from({ length: n }, () => newFlake(Math.random() * H));
+      // на телефоні висота «стрибає» від панелі адреси під час скролу — сніжинки не перегенеровуємо
+      if (Math.abs(flakes.length - n) > 8 || W !== lastW) flakes = Array.from({ length: n }, () => newFlake(Math.random() * H));
+      lastW = W;
     }
     function newFlake(y) {
       const r = Math.random();
-      const pick = (a) => a[Math.floor(Math.random() * a.length)];
       return { x: Math.random() * W, y, vy: 12 + Math.random() * 30, ph: Math.random() * TAU, sw: 6 + Math.random() * 14,
-               key: (r < 0.6 ? "+" : r < 0.85 ? "*" : ".") + pick(SIZES) + "|" + pick(ALPHAS) };
+               ch: r < 0.6 ? "+" : r < 0.85 ? "*" : ".", size: 9 + Math.random() * 7, a: 0.35 + Math.random() * 0.5 };
     }
     function draw(ts) {
       raf = requestAnimationFrame(draw);
@@ -62,16 +44,20 @@
       const dt = Math.min(0.1, (ts - last) / 1000 || 0);
       last = ts;
       ctx.clearRect(0, 0, W, H);
+      const rgb = dark.matches ? "220,228,255" : "108,111,224";
+      ctx.textAlign = "center";
       for (const f of flakes) {
         f.y += f.vy * dt;
         if (f.y > H + 10) Object.assign(f, newFlake(-10));
-        const sp = sprites[f.key];
-        ctx.drawImage(sp.c, f.x + Math.sin(ts / 1400 + f.ph) * f.sw - sp.w / 2, f.y - sp.h / 2, sp.w, sp.h);
+        const x = f.x + Math.sin(ts / 1400 + f.ph) * f.sw;
+        ctx.font = `${f.size}px Menlo, Consolas, monospace`;
+        ctx.fillStyle = `rgba(${rgb},${f.a * (dark.matches ? 0.75 : 0.45)})`;
+        ctx.fillText(f.ch, x, f.y);
       }
     }
     function start() { if (!raf && on && !reduce && document.visibilityState === "visible") { last = 0; raf = requestAnimationFrame(draw); } }
     function stop() { cancelAnimationFrame(raf); raf = 0; ctx.clearRect(0, 0, W, H); }
-    let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(resize, 150); });
+    let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(resize, 150); });   // на телефоні resize летить при кожному скролі
     document.addEventListener("visibilitychange", () => (document.visibilityState === "visible" ? start() : stop()));
     resize();
     start();
@@ -400,30 +386,8 @@
     const mobile = matchMedia("(max-width: 640px)").matches;
     const q = build(mobile ? 0.5 : 0.85);
     let S = null, fs = 10, cw = 6, chh = 12, t0 = performance.now(), raf = 0, visible = true, last = 0;
-    // Атлас гліфів: кожну пару «символ + колір» малюємо один раз, далі лише копіюємо (drawImage замість тисяч fillText)
-    let atlas = null, actx = null, slots = new Map(), next = 0, AW = 0, AH = 0, gw = 0, gh = 0, adpr = 1;
-    const ACOLS = 64, AROWS = 64;
-    function resetAtlas(dpr) {
-      adpr = dpr; gw = Math.ceil(cw * dpr) + 1; gh = Math.ceil(chh * dpr) + 1;
-      AW = gw * ACOLS; AH = gh * AROWS;
-      atlas = document.createElement("canvas"); atlas.width = AW; atlas.height = AH;
-      actx = atlas.getContext("2d");
-      actx.font = `${fs * dpr}px Menlo, Consolas, "DejaVu Sans Mono", monospace`;
-      actx.textBaseline = "top";
-      slots = new Map(); next = 0;
-    }
-    function glyph(c, r, g, b) {
-      const key = c * 16777216 + ((r << 16) | (g << 8) | b);
-      let s = slots.get(key);
-      if (s !== undefined) return s;
-      if (next >= ACOLS * AROWS) return -1;          // атлас заповнено — далі звичайний fillText
-      s = next++;
-      const sx = (s % ACOLS) * gw, sy = Math.floor(s / ACOLS) * gh;
-      actx.fillStyle = `rgb(${r},${g},${b})`;
-      actx.fillText(String.fromCharCode(c), sx, sy);
-      slots.set(key, s);
-      return s;
-    }
+    const styles = new Map();
+    const fill = (r, g, b) => { const key = (r << 16) | (g << 8) | b; let v = styles.get(key); if (!v) { v = `rgb(${r},${g},${b})`; styles.set(key, v); } return v; };
 
     function resize() {
       const dpr = Math.min(devicePixelRatio || 1, 2), w = cv.clientWidth, h = cv.clientHeight;
@@ -434,7 +398,6 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       S = makeScene(q, Math.floor(w / cw), Math.floor(h / chh), cw / chh);
       S.ox = (w - S.cols * cw) / 2; S.oy = (h - S.rows * chh) / 2;
-      resetAtlas(dpr);
     }
     function paint(t) {
       frame(S, t);
@@ -442,19 +405,17 @@
       ctx.fillRect(0, 0, cv.clientWidth, cv.clientHeight);
       ctx.font = `${fs}px Menlo, Consolas, "DejaVu Sans Mono", monospace`;
       ctx.textBaseline = "top";
-      const dw = gw / adpr, dh = gh / adpr;
       for (let y = 0; y < S.rows; y++) for (let x = 0; x < S.cols; x++) {
         const i = y * S.cols + x, c = S.char[i];
         if (!c || c === 32) continue;
-        const r = (S.col[i * 3] * 255) & 0xf0, g = (S.col[i * 3 + 1] * 255) & 0xf0, b = (S.col[i * 3 + 2] * 255) & 0xf0;
-        const s = glyph(c, r | (r >> 4), g | (g >> 4), b | (b >> 4));
-        if (s >= 0) ctx.drawImage(atlas, (s % ACOLS) * gw, Math.floor(s / ACOLS) * gh, gw, gh, S.ox + x * cw, S.oy + y * chh, dw, dh);
-        else { ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fillText(String.fromCharCode(c), S.ox + x * cw, S.oy + y * chh); }
+        ctx.fillStyle = fill((S.col[i * 3] * 255) & 0xf8, (S.col[i * 3 + 1] * 255) & 0xf8, (S.col[i * 3 + 2] * 255) & 0xf8);
+        ctx.fillText(String.fromCharCode(c), S.ox + x * cw, S.oy + y * chh);
       }
     }
+    const fps = mobile ? 20 : FPS;                   // на телефоні — 20 кадрів: плавно, але легше для батареї
     function tick(ts) {
       raf = requestAnimationFrame(tick);
-      if (ts - last < 1000 / FPS - 2) return;
+      if (ts - last < 1000 / fps - 2) return;
       last = ts;
       paint((ts - t0) / 1000);
     }
