@@ -82,6 +82,19 @@ function site_() { return open_("siteId") || lib_(); }
 function f4_() { return open_("f4Id"); }
 function f4pub_() { return open_("f4PubId"); }
 const siteSheet_ = (name) => site_().getSheetByName(name);
+
+// Кеш читань (CacheService): сайт питає сервер на кожній сторінці, а читати таблиці щоразу — повільно.
+// Будь-яка зміна таблиць скриптом або вручну (тригери onSiteEdit/onSiteChange/onLibEdit) кеш скидає;
+// про всяк випадок записи живуть щонайбільше CACHE_TTL секунд.
+const CACHE_TTL = 300, SITE_KEYS = ["settings", "blocks", "people", "devices"], LIB_KEYS = ["loans"];
+const cache_ = () => CacheService.getScriptCache();
+function cached_(key, fn) {
+  try { const hit = cache_().get(key); if (hit) return JSON.parse(hit); } catch (e) {}
+  const v = fn();
+  try { cache_().put(key, JSON.stringify(v), CACHE_TTL); } catch (e) {}
+  return v;
+}
+function dropCache_(keys) { try { cache_().removeAll(keys || SITE_KEYS.concat(LIB_KEYS)); } catch (e) {} }
 const listRule_ = (items) => SpreadsheetApp.newDataValidation().requireValueInList(items, true).setAllowInvalid(false).build();
 const bold_ = (sh, headers) => sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
 const stamp_ = (d, f) => Utilities.formatDate(d, Session.getScriptTimeZone(), f || "dd.MM.yyyy HH:mm");
@@ -91,6 +104,7 @@ const stamp_ = (d, f) => Utilities.formatDate(d, Session.getScriptTimeZone(), f 
 // створює лише те, чого ще немає, і не чіпає твоє оформлення.
 // ============================================================================
 function setup() {
+  dropCache_();
   const lib = lib_();
 
   // Журнал
@@ -168,6 +182,7 @@ function setup() {
   journalNames_();
   writeStatus_(loans_());
   installTriggers_();
+  dropCache_();
 
   const blank = lib.getSheetByName("Аркуш1") || lib.getSheetByName("Sheet1");
   if (blank && blank.getLastRow() === 0 && lib.getSheets().length > 2) lib.deleteSheet(blank);
@@ -322,6 +337,8 @@ function installTriggers_() {
   [["onLibEdit", lib_().getId()], ["onSiteEdit", PROPS.getProperty("siteId")], ["onF4Edit", PROPS.getProperty("f4Id")]].forEach(([fn, id]) => {
     if (id && have.indexOf(fn + "|" + id) < 0) ScriptApp.newTrigger(fn).forSpreadsheet(id).onEdit().create();
   });
+  const sid = PROPS.getProperty("siteId");
+  if (sid && have.indexOf("onSiteChange|" + sid) < 0) ScriptApp.newTrigger("onSiteChange").forSpreadsheet(sid).onChange().create();
 }
 
 // Спадний список імен у журналі (оновлюється разом зі списком людей)
@@ -341,20 +358,24 @@ const cleanDev_ = (d) => String(d || "").replace(/[^a-z0-9]/gi, "").slice(0, 24)
 const typeOf_ = (d) => (d.type === PHONE || d.type === LAPTOP ? d.type : /iPhone|iPad|Android/.test(String(d.ua)) ? PHONE : LAPTOP);
 
 function settings_() {
-  const se = siteSheet_(SHEET_SETTINGS), out = {};
-  if (se && se.getLastRow() > 1) se.getRange(2, 1, se.getLastRow() - 1, 2).getValues().forEach((r) => { out[String(r[0]).trim()] = r[1]; });
-  return out;
+  return cached_("settings", () => {
+    const se = siteSheet_(SHEET_SETTINGS), out = {};
+    if (se && se.getLastRow() > 1) se.getRange(2, 1, se.getLastRow() - 1, 2).getValues().forEach((r) => { out[String(r[0]).trim()] = r[1]; });
+    return out;
+  });
 }
 const gateOn_ = () => String(settings_()[SET_GATE] || "").trim() === "Так";
 const defaultLimit_ = () => { const v = Number(settings_()[SET_LIMIT]); return v > 0 ? Math.floor(v) : 3; };
 
 function people_() {
-  const pp = siteSheet_(SHEET_PEOPLE);
-  const byName = {}, byCode = {}, byOld = {}, list = [];
+  const byName = {}, byCode = {}, byOld = {}, list = [], choose = [];
   const def = defaultLimit_();
-  const last = pp ? lastPersonRow_(pp) : 1;
-  if (last >= 2) {
-    pp.getRange(2, 1, last - 1, P_OLD).getValues().forEach((r, i) => {
+  const raw = cached_("people", () => {
+    const pp = siteSheet_(SHEET_PEOPLE), last = pp ? lastPersonRow_(pp) : 1;
+    return last >= 2 ? pp.getRange(2, 1, last - 1, P_OLD).getValues() : [];
+  });
+  {
+    raw.forEach((r, i) => {
       const name = String(r[P_NAME - 1]).trim();
       if (!name) return;
       const lim = Number(r[P_LIMIT - 1]);
@@ -367,26 +388,33 @@ function people_() {
       rec.ok = rec.access && !rec.blocked;
       byName[name] = rec;
       list.push(name);
+      if (rec.role !== ROLE_MENTOR) choose.push(name);   // ментори входять лише за своїм посиланням
       if (rec.code) byCode[rec.code] = rec;
       if (rec.old) byOld[rec.old] = rec;
     });
   }
-  return { sheet: pp, byName, byCode, byOld, list };
+  return { get sheet() { return siteSheet_(SHEET_PEOPLE); }, byName, byCode, byOld, list, choose };
 }
 
 function devices_() {
-  const dv = siteSheet_(SHEET_DEVICES);
   const rows = [], bySession = {};
-  if (dv && dv.getLastRow() >= 2) {
-    dv.getRange(2, 1, dv.getLastRow() - 1, D_SESSION).getValues().forEach((r, i) => {
-      const d = { row: i + 2, name: String(r[D_NAME - 1]).trim(), type: r[D_TYPE - 1], seen: r[D_SEEN - 1],
+  const raw = cached_("devices", () => {
+    const dv = siteSheet_(SHEET_DEVICES);
+    if (!dv || dv.getLastRow() < 2) return [];
+    return dv.getRange(2, 1, dv.getLastRow() - 1, D_SESSION).getValues()
+      .map((r) => r.map((v) => (v instanceof Date ? { t: v.getTime() } : v)));
+  });
+  {
+    raw.forEach((r, i) => {
+      const seen = r[D_SEEN - 1] && r[D_SEEN - 1].t ? new Date(r[D_SEEN - 1].t) : r[D_SEEN - 1];
+      const d = { row: i + 2, name: String(r[D_NAME - 1]).trim(), type: r[D_TYPE - 1], seen,
                   dev: String(r[D_DEV - 1]).trim(), session: String(r[D_SESSION - 1]).trim() };
       if (!d.name || !d.session) return;
       rows.push(d);
       bySession[d.session] = d;
     });
   }
-  return { sheet: dv, rows, bySession };
+  return { get sheet() { return siteSheet_(SHEET_DEVICES); }, rows, bySession };
 }
 const activeCount_ = (devs, name) => devs.rows.filter((d) => d.name === name).length;
 
@@ -396,8 +424,10 @@ function addDevice_(person, dev, type, ua, why, devs) {
   const same = dev && devs.rows.find((d) => d.name === person.name && d.dev === dev);
   if (same) return same.session;
   const session = newToken_(), now = new Date();
-  devs.sheet.appendRow([person.name, type, ua, now, now, false, dev, session]);
-  devs.sheet.getRange(devs.sheet.getLastRow(), D_LOGOUT).insertCheckboxes();
+  const sh = devs.sheet;
+  sh.appendRow([person.name, type, ua, now, now, false, dev, session]);
+  sh.getRange(sh.getLastRow(), D_LOGOUT).insertCheckboxes();
+  dropCache_(["devices"]);
   logEvent_("Новий пристрій", "", person.name, dev, type, why);
   countDevices_();
   return session;
@@ -417,7 +447,11 @@ function whoBySession_(token, dev, type, ua) {
   }
   const rec = ppl.byName[d.name];
   if (!rec) return null;
-  if (!(d.seen instanceof Date) || Date.now() - d.seen.getTime() > SEEN_EVERY_MS) devs.sheet.getRange(d.row, D_SEEN).setValue(new Date());
+  if (!(d.seen instanceof Date) || Date.now() - d.seen.getTime() > SEEN_EVERY_MS) {
+    const sh = devs.sheet;                         // рядок із кешу — перевіряємо, що це той самий пристрій
+    if (String(sh.getRange(d.row, D_SESSION).getValue()).trim() === token) sh.getRange(d.row, D_SEEN).setValue(new Date());
+    dropCache_(["devices"]);
+  }
   return { name: rec.name, role: rec.role, ok: rec.ok, rec, device: d };
 }
 
@@ -444,6 +478,7 @@ function ensurePeople_() {
   });
   pp.getRange(2, P_ROLE, n, 3).setValues(rows.map((r) => [r[P_ROLE - 1], r[P_ACCESS - 1], r[P_BLOCKED - 1]]));
   pp.getRange(2, P_LINK, n, 3).setValues(rows.map((r) => [r[P_LINK - 1], r[P_RELINK - 1], r[P_CODE - 1]]));
+  dropCache_(["people"]);
   countDevices_();
 }
 
@@ -459,15 +494,19 @@ function countDevices_() {
 
 // Що заблоковано для пристрою: "" — нічого, BLOCK_SITE — увесь сайт, BLOCK_BOOKS — лише книжки
 function blockOf_(dev) {
-  const bl = siteSheet_(SHEET_BLOCK);
-  if (!dev || !bl || bl.getLastRow() < 2) return "";
-  let res = "";
-  bl.getRange(2, 1, bl.getLastRow() - 1, 4).getValues().forEach((r) => {
-    if (String(r[0]).trim() !== dev) return;
-    const kind = String(r[3]).trim() === BLOCK_BOOKS ? BLOCK_BOOKS : BLOCK_SITE;
-    if (kind === BLOCK_SITE || !res) res = kind;
+  if (!dev) return "";
+  const map = cached_("blocks", () => {
+    const bl = siteSheet_(SHEET_BLOCK), out = {};
+    if (!bl || bl.getLastRow() < 2) return out;
+    bl.getRange(2, 1, bl.getLastRow() - 1, 4).getValues().forEach((r) => {
+      const d = String(r[0]).trim();
+      if (!d) return;
+      const kind = String(r[3]).trim() === BLOCK_BOOKS ? BLOCK_BOOKS : BLOCK_SITE;
+      if (kind === BLOCK_SITE || !out[d]) out[d] = kind;
+    });
+    return out;
   });
-  return res;
+  return map[dev] || "";
 }
 
 // ============================================================================
@@ -493,12 +532,18 @@ function processAccess_() {
     }
     if (decision !== ACC_YES) return;
     let ppl = people_(), rec = ppl.byName[name];
+    if (rec && rec.role === ROLE_MENTOR) {           // ментори — лише за особистим посиланням
+      sheet.getRange(i + 2, 8).setValue(ACC_REJ);
+      logEvent_("Доступ відхилено", "", name, r[4], r[5], "ментор входить лише за особистим посиланням");
+      return;
+    }
     if (!rec) {                                     // нова людина — дописуємо в «Люди» студентом
       ppl.sheet.getRange(lastPersonRow_(ppl.sheet) + 1, 1, 1, P_OLD).setValues([[name, ROLE_STUDENT, true, false, "", "", "", "", "", false, newToken_(), ""]]);
       ensurePeople_();
       ppl = people_(); rec = ppl.byName[name];
     } else if (!rec.access) {
       ppl.sheet.getRange(rec.row, P_ACCESS).setValue(true);
+      dropCache_(["people"]);
     }
     const session = addDevice_(rec, String(r[4]).trim(), String(r[5]).trim() === PHONE ? PHONE : LAPTOP, "", "підтверджений запит доступу");
     sheet.getRange(i + 2, 8, 1, 2).setValues([[ACC_DONE, session]]);
@@ -574,17 +619,20 @@ function logEvent_(event, page, name, dev, type, details) {
 // ============================================================================
 // Стан книжок
 // ============================================================================
-function loans_() {
-  const log = lib_().getSheetByName(SHEET_LOG);
-  const loans = {};
-  if (!log || log.getLastRow() < 2) return loans;
-  log.getRange(2, 1, log.getLastRow() - 1, 5).getValues().forEach(([date, id, , name, act]) => {
-    id = String(id).trim();
-    if (!id) return;
-    if (act === TAKEN) loans[id] = { name: String(name), date: date instanceof Date ? date.toISOString() : "" };
-    else if (act === RETURNED) delete loans[id];
+function loans_(fresh) {
+  if (fresh) dropCache_(["loans"]);
+  return cached_("loans", () => {
+    const log = lib_().getSheetByName(SHEET_LOG);
+    const loans = {};
+    if (!log || log.getLastRow() < 2) return loans;
+    log.getRange(2, 1, log.getLastRow() - 1, 5).getValues().forEach(([date, id, , name, act]) => {
+      id = String(id).trim();
+      if (!id) return;
+      if (act === TAKEN) loans[id] = { name: String(name), date: date instanceof Date ? date.toISOString() : "" };
+      else if (act === RETURNED) delete loans[id];
+    });
+    return loans;
   });
-  return loans;
 }
 
 function catalog_() {
@@ -661,10 +709,14 @@ function createStatusSheet_(ss) {
 // ============================================================================
 function onLibEdit(e) {
   if (!e || !e.range) return;
-  if (e.range.getSheet().getName() === SHEET_LOG) writeStatus_(loans_());
+  if (e.range.getSheet().getName() === SHEET_LOG) writeStatus_(loans_(true));
 }
 
+// Зміни структури «УАЛ · Сайт» (видалені/вставлені рядки тощо) — скидаємо кеш
+function onSiteChange() { dropCache_(SITE_KEYS); }
+
 function onSiteEdit(e) {
+  dropCache_(SITE_KEYS);
   if (!e || !e.range) return;
   const sh = e.range.getSheet(), name = sh.getName();
   // Новий рядок у «Блокуванні»: ставимо дату й тип, якщо порожні
@@ -683,6 +735,7 @@ function onSiteEdit(e) {
       if (sh.getRange(r, D_LOGOUT).getValue() !== true) continue;
       const v = sh.getRange(r, 1, 1, D_DEV).getValues()[0];
       sh.deleteRow(r);
+      dropCache_(["devices"]);
       logEvent_("Вихід з пристрою", "", v[D_NAME - 1], v[D_DEV - 1], v[D_TYPE - 1], "адміністратор вийшов з пристрою");
     }
     countDevices_();
@@ -724,7 +777,7 @@ function doGet(e) {
     }
     return json_(res);
   }
-  if (p.students) return json_({ ok: true, students: people_().list });
+  if (p.students) return json_({ ok: true, students: people_().choose });   // для вибору «Хто ти?» — без менторів
   if (p.req) {                                       // статус запиту доступу
     const id = String(p.req).replace(/[^a-z0-9]/gi, "").slice(0, 40);
     const row = accessRows_().rows.find((r) => String(r[0]) === id);
@@ -783,7 +836,8 @@ function doPost(e) {
       const name = String(d.name || "").replace(/\s+/g, " ").trim().slice(0, 80);
       if (name.length < 3) return json_({ ok: false, error: "Вкажи прізвище та ім'я" });
       if (blockOf_(dev)) return json_({ ok: false, error: "З цього пристрою доступ заборонено." });
-      const isNew = !people_().byName[name];
+      const known = people_().byName[name], isNew = !known;
+      if (known && known.role === ROLE_MENTOR) return json_({ ok: false, error: "Ментори входять лише за своїм особистим посиланням. Попроси його в адміністратора." });
       const { sheet, rows } = accessRows_();
       const open = rows.find((r) => String(r[4]) === dev && String(r[2]).trim() === name && !String(r[7]).trim());
       if (open) return json_({ ok: true, req: String(open[0]) });
@@ -817,7 +871,7 @@ function doPost(e) {
 
     if (d.books) saveCatalog_(d.books);
     const log = lib_().getSheetByName(SHEET_LOG);
-    const loans = loans_();
+    const loans = loans_(true);                      // для запису — завжди свіжий стан, не з кешу
 
     if (d.action === "sync") {
       writeStatus_(loans);
@@ -843,6 +897,7 @@ function doPost(e) {
       log.appendRow([now, id, title, name, TAKEN, dev, ua, note]);
       logEvent_("Взяття", title, name, dev, type, note);
       loans[id] = { name, date: now.toISOString() };
+      dropCache_(["loans"]);
       writeStatus_(loans);
       return json_({ ok: true, loans, name });
     }
@@ -854,6 +909,7 @@ function doPost(e) {
       log.appendRow([new Date(), id, title, holder, RETURNED, dev, ua, note]);
       logEvent_("Повернення", title, holder, dev, type, note);
       delete loans[id];
+      dropCache_(["loans"]);
       writeStatus_(loans);
       return json_({ ok: true, loans });
     }

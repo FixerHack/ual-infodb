@@ -46,9 +46,18 @@ const Library = (() => {
     id: b.id, title: b.title, author: (typeof AUTHORS !== "undefined" && AUTHORS[b.authorId]?.name) || "",
   })));
 
+  // Останній відомий стан — показуємо одразу, поки сервер відповідає (сервер Google думає 1–3 с)
+  const CACHE_KEY = "ual-loans-cache";
+  const save = (r) => { if (r && r.ok && r.loans) try { localStorage.setItem(CACHE_KEY, JSON.stringify({ loans: r.loans, students: r.students, t: Date.now() })); } catch (e) {} return r; };
+  function cached() {
+    if (demo) return { ok: true, loans: readDemo(), students: STUDENTS };
+    try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); if (c && c.loans && Date.now() - c.t < 7 * 864e5) return { ok: true, ...c }; } catch (e) {}
+    return null;
+  }
+
   async function state() {
     if (demo) return { ok: true, loans: readDemo(), students: STUDENTS };
-    const r = await call();
+    const r = save(await call());
     if (r.ok && !(r.students && r.students.length)) r.students = STUDENTS;
     // якщо в таблиці застарілий список книжок — оновлюємо його (раз, без участі користувача)
     const ids = catalog().map((b) => b.id).sort().join(",");
@@ -66,6 +75,7 @@ const Library = (() => {
       return { ok: true, loans: l };
     }
     const r = await call({ action: "take", bookId: book.id, title: book.title, name, confirm, ...dev(), books: catalog() });
+    if (r.loans) save({ ok: true, loans: r.loans, students: (cached() || {}).students });
     if (r.ok && typeof UAL !== "undefined") UAL.rememberName(name);
     if (r.ok) markMine(book.id, true);
     return r;
@@ -80,6 +90,7 @@ const Library = (() => {
       return { ok: true, loans: l };
     }
     const r = await call({ action: "return", bookId: book.id, title: book.title, ...dev(), books: catalog() });
+    if (r.loans) save({ ok: true, loans: r.loans, students: (cached() || {}).students });
     if (r.ok) markMine(book.id, false);
     return r;
   }
@@ -91,7 +102,7 @@ const Library = (() => {
 
   const lastName = () => (typeof UAL !== "undefined" ? UAL.me || UAL.lastName() : "");
 
-  return { demo, state, take, giveBack, fmtDate, lastName, isMine };
+  return { demo, state, cached, take, giveBack, fmtDate, lastName, isMine };
 })();
 
 // Маленьке спливаюче повідомлення

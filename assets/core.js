@@ -54,8 +54,8 @@ const UAL = (() => {
   }
 
   // Екран блокування для пристроїв, заблокованих на весь сайт.
-  // Статус перевіряється кожні 30 секунд, поки вкладка відкрита й видима.
-  const CHECK_MS = 30 * 1000;
+  // Статус перевіряється раз на 2 хвилини, поки вкладка відкрита й видима.
+  const CHECK_MS = 2 * 60 * 1000;
   let checking = false;
 
   function showBlocked() {
@@ -115,7 +115,7 @@ const UAL = (() => {
   if (!token && !onVhid && gate === "") {
     document.documentElement.style.visibility = "hidden";
     const show = () => { if (!(gate === "1" && !token)) document.documentElement.style.visibility = ""; };
-    setTimeout(show, 4000);
+    setTimeout(show, 2500);
     checkBlock(true).finally(show);
   }
 

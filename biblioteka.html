@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>УАЛ | Бібліотека</title>
+  <link rel="preconnect" href="https://script.google.com">
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
@@ -71,11 +73,11 @@
   </div>
 </main>
 
-<script src="assets/core.js?v=20261144"></script>
+<script src="assets/core.js?v=20261145"></script>
 <script src="assets/students.js?v=20261126"></script>
 <script src="assets/library-data.js?v=20261130"></script>
 <script src="assets/library-data-2.js?v=20261135"></script>
-<script src="assets/library.js?v=20261144"></script>
+<script src="assets/library.js?v=20261145"></script>
 <script>
 let loans = {};
 const F0 = { sort: "az", status: "all", genre: "Усі", author: "" };
@@ -161,12 +163,14 @@ function render() {
   $("lib-stats").innerHTML = `<span><b>${BOOKS.length}</b> ${pl(BOOKS.length, "книжка", "книжки", "книжок")}</span><span><b>${BOOKS.length - taken}</b> ${pl(BOOKS.length - taken, "вільна", "вільні", "вільних")}</span><span><b>${taken}</b> на руках</span>`;
 }
 
+const pre = Library.cached();
+if (pre) loans = pre.loans;
 render();
 Library.state().then((r) => {
   if (r.ok) { loans = r.loans || {}; render(); }
   else toast(r.error, "err");
 });
 </script>
-<script src="assets/site.js?v=20261144"></script>
+<script src="assets/site.js?v=20261145"></script>
 </body>
 </html>
