@@ -96,7 +96,7 @@ async function load() {
   try { r = await (await fetch(UAL_API_URL + "?f4=1&token=" + encodeURIComponent(UAL.token) + "&t=" + Date.now())).json(); }
   catch (e) { r = null; }
   if (!r) return showGate(`<p class="detail-note">Не вдалося зв'язатися з сервером. Онови сторінку трохи пізніше.</p>`, true);
-  if (r.auth === false) { if (UAL.token) UAL.clearIdentity(); return needLogin(r.test); }
+  if (r.auth === false) { if (UAL.token) UAL.clearIdentity(); return needLogin(r.test !== false); }
   if (!r.ok) return showGate(`<p class="detail-note">${esc(r.error || "Помилка")}</p>`, true);
   if (r.allowed === false) return r.test ? devView() : mentorView();
   if (r.allowed === undefined && r.role !== "Адмін") return devView();     // старий скрипт ще не оновлено — F4 закрито
@@ -115,7 +115,7 @@ $("form").addEventListener("submit", async (e) => {
       body: JSON.stringify({ action: "f4", token: UAL.token, date: $("date").value, reason: $("reason").value.trim(), device: UAL.device, ua: UAL.ua, type: UAL.type }) })).json();
   } catch (err) { r = { ok: false, error: "Не вдалося надіслати. Перевір інтернет і спробуй ще раз." }; }
   btn.disabled = false; btn.textContent = "Подати заявку";
-  if (r.auth === false) { UAL.clearIdentity(); return needLogin(r.test); }
+  if (r.auth === false) { UAL.clearIdentity(); return needLogin(r.test !== false); }
   if (r.allowed === false) { toast(r.error, "err"); return r.test ? devView() : mentorView(); }
   if (r.mine) renderMine(r.mine);
   if (!r.ok) return toast(r.error, "err");
