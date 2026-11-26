@@ -794,12 +794,14 @@ function calDecide_(range) {
   }));
 }
 
-// Фільтр «Запитів» за замовчуванням: з учорашнього дня (учора ще пишуть звіт), минулі — сховані
+// Фільтр «Запитів» за замовчуванням: з учорашнього дня (учора ще пишуть звіт), минулі — сховані.
+// Порожні рядки лишаються видимими — туди скрипт пише нові заявки (інакше вони б з'являлись схованими).
+// Формула без «,» / «;», щоб працювала в будь-якій мові таблиці; TODAY() — межа зсувається сама.
+const F4_FILTER_FORMULA = '=NOT(D2+(D2="")*999999<TODAY()-1)';
 function f4DefaultFilter_(q) {
   const f = q.getFilter();
   if (!f) return;
-  const now = new Date();
-  f.setColumnFilterCriteria(F_DATE, SpreadsheetApp.newFilterCriteria().whenDateAfter(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2)).build());
+  f.setColumnFilterCriteria(F_DATE, SpreadsheetApp.newFilterCriteria().whenFormulaSatisfied(F4_FILTER_FORMULA).build());
 }
 // Після нової заявки чи рішення — перезастосувати фільтри, щоб нові рядки не лишались схованими
 function refreshFilter_(q) {
