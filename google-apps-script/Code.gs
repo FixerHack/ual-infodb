@@ -3,8 +3,8 @@
 // Скрипт прив'язаний до таблиці «Бібліотека» і сам створює та веде ще три таблиці:
 //   Бібліотека (ця)        — Стан книжок, Журнал
 //   УАЛ · Сайт             — Люди, Пристрої, Логи, Блокування, Запити доступу, Налаштування
-//   УАЛ · F4               — Календар, Запити (з причинами, рішення), По днях — лише для адміністрації
-//   УАЛ · F4 (публічна)    — Календар, Заявки, По днях — без причин           — можна поділитися зі студентами
+//   УАЛ · F4               — Календар, Запити (з причинами, рішення) — лише для адміністрації
+//   УАЛ · F4 (публічна)    — Календар, Заявки — без причин             — можна поділитися зі студентами
 // ID нових таблиць зберігаються у властивостях скрипта. Посилання на них — у журналі виконання setup().
 //
 // Як працює вхід:
@@ -31,7 +31,7 @@ const SHEET_F4_DAYS = "По днях";
 const SHEET_F4_PUB = "Заявки";
 const SHEET_F4_REASONS = "Причини";
 const SHEET_F4_CAL = "Календар";
-const CAL_WEEKS_BACK = 1, CAL_WEEKS = 6; // минулий тиждень + поточний + 4 наступні
+const CAL_WEEKS_BACK = 0, CAL_WEEKS = 5; // поточний тиждень + 4 наступні (минулі не показуємо)
 // Колонки «F4 → Запити»
 const F4_HEADERS = ["ID", "Подано", "Студент", "Дата", "Причина", "Рішення", "Коментар", "Інших схвалених F4", "Звіт за день", "Звіт подано"];
 const F_ID = 1, F_AT = 2, F_NAME = 3, F_DATE = 4, F_REASON = 5, F_STATUS = 6, F_COMMENT = 7, F_COUNT = 8, F_REPORT = 9, F_REPORT_AT = 10;
@@ -329,11 +329,6 @@ function setupF4_() {
     q.getRange("E2:E").setWrap(true).setVerticalAlignment("top");
     q.hideColumns(1);
     statusColors_(q, "F2:F");
-    const d = ss.insertSheet(SHEET_F4_DAYS);
-    bold_(d, ["Дата", "Дозволено", "На розгляді", "Заборонено", "Усього"]);
-    d.setFrozenRows(1);
-    d.setColumnWidth(1, 130);
-    d.setColumnWidths(2, 3, 260);
     PROPS.setProperty("f4Id", ss.getId());
     memo_.f4Id = ss;
   }
@@ -346,11 +341,6 @@ function setupF4_() {
     a.setColumnWidth(2, 220);
     a.setColumnWidth(3, 140);
     statusColors_(a, "C2:C");
-    const d = ss.insertSheet(SHEET_F4_DAYS);
-    bold_(d, ["Дата", "Дозволено", "На розгляді"]);
-    d.setFrozenRows(1);
-    d.setColumnWidth(1, 130);
-    d.setColumnWidths(2, 2, 300);
     PROPS.setProperty("f4PubId", ss.getId());
     memo_.f4PubId = ss;
   }
@@ -365,7 +355,12 @@ function setupF4_() {
     q.getRange(2, F_REPORT, 1000, 1).setWrap(true).setVerticalAlignment("top");
     q.setColumnWidth(F_COUNT, 150);
     q.setColumnWidth(F_REPORT, 420);
+    // фільтри на всі колонки (сортування, статус, ім'я, дата…); за замовчуванням — без минулих днів
+    if (!q.getFilter()) q.getRange(1, 1, q.getMaxRows(), F_REPORT_AT).createFilter();
+    f4DefaultFilter_(q);
   }
+  // «По днях» більше не ведемо — ховаємо (дані лишаються)
+  [f4_(), f4pub_()].forEach((ss) => { const d = ss && ss.getSheetByName(SHEET_F4_DAYS); if (d && !d.isSheetHidden()) d.hideSheet(); });
   // «Причини»: список, з якого обирають на сайті (плюс завжди є «Інше» з власним текстом)
   let rs = f4_().getSheetByName(SHEET_F4_REASONS);
   if (!rs) {
@@ -667,16 +662,9 @@ function reportState_(r) {
   return r.report ? "closed" : "missed";
 }
 
-// «По днях» у приватній таблиці + обидва аркуші публічної (без причин)
+// Лічильник у «Запитах», «Заявки» публічної таблиці й обидва календарі
 function rebuildF4_() {
   const rows = f4Rows_().sort((a, b) => a.date - b.date || String(a.name).localeCompare(b.name, "uk"));
-  const days = {};
-  rows.forEach((r) => {
-    const k = dayKey_(r.date);
-    const d = (days[k] = days[k] || { date: r.date, yes: [], wait: [], no: [] });
-    d[r.status === F4_YES ? "yes" : r.status === F4_NO ? "no" : "wait"].push(r.name);
-  });
-  const list = Object.keys(days).sort().map((k) => days[k]);
   const write = (sh, data, width) => {
     if (!sh) return;
     if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, width).clearContent();
@@ -698,17 +686,16 @@ function rebuildF4_() {
     const n = q.getLastRow() - 1;
     q.getRange(2, F_COUNT, n, 1).setValues(Array.from({ length: n }, (_, i) => [byRow[i + 2] === undefined ? "" : byRow[i + 2]]));
   }
-  if (pv) write(pv.getSheetByName(SHEET_F4_DAYS), list.map((d) => [d.date, d.yes.join("\n"), d.wait.join("\n"), d.no.join("\n"), d.yes.length + d.wait.length + d.no.length]), 5);
+  if (q) refreshFilter_(q);
   if (pub) {
     write(pub.getSheetByName(SHEET_F4_PUB), rows.map((r) => [r.date, r.name, r.status]), 3);
-    write(pub.getSheetByName(SHEET_F4_DAYS), list.filter((d) => d.yes.length || d.wait.length).map((d) => [d.date, d.yes.join("\n"), d.wait.join("\n")]), 3);
   }
   if (pv) writeCal_(pv, rows, others);
   if (pub) writeCal_(pub, rows.filter((r) => r.status !== F4_NO), null);
 }
 
 // «Календар»: тиждень — рядок дат і під ним по рядку на кожну заявку; Пн…Нд у колонках.
-// Вікно: минулий тиждень + 5 наступних; щоночі зсувається само (тригер onF4Daily).
+// Вікно: поточний тиждень + 4 наступні; щоночі зсувається само (тригер onF4Daily).
 // others — лише для приватної таблиці: там кожна заявка — випадний список ⏳/✅/❌,
 // вибір одразу записується в «Запити» (onF4Edit → calDecide_). ID заявок — на схованому аркуші.
 const CAL_ICON = { [F4_YES]: "✅", [F4_WAIT]: "⏳", [F4_NO]: "❌" };
@@ -720,7 +707,6 @@ function writeCal_(ss, rows, others) {
   let sh = ss.getSheetByName(SHEET_F4_CAL);
   if (!sh) {
     sh = ss.insertSheet(SHEET_F4_CAL, 0);
-    sh.setColumnWidths(1, 7, 185);
     sh.setFrozenRows(2);
     try { sh.setHiddenGridlines(true); } catch (e) {}
   }
@@ -744,10 +730,10 @@ function writeCal_(ss, rows, others) {
     r.status === F4_YES && (r.report ? "Звіт" + (r.reportAt instanceof Date ? " (" + stamp_(r.reportAt, "dd.MM HH:mm") + ")" : "") + ": " + r.report : "Звіту ще немає")]
     .filter(Boolean).join("\n\n");
   const label = (r) => CAL_ICON[r.status] + " " + r.name + (others && others(r) ? " (" + others(r) + ")" : "") + (others && isTestF4_(r) ? " · тест" : "");
-  row(["F4 · календар", "", others ? "Обери ✅ / ❌ у клітинці — рішення запишеться в «Запити». Наведи на клітинку — причина і звіт. (2) — скільки F4 людині вже дозволили" : "✅ дозволено · ⏳ на розгляді",
-       "", "", "", "оновлено " + stamp_(now, "dd.MM HH:mm")], fill("#ffffff"), ["#1f2a44", "#000000", "#6b7280", "#000000", "#000000", "#000000", "#9ca3af"],
-      ["bold", "normal", "normal", "normal", "normal", "normal", "normal"], 30);
-  row(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"], fill("#1f2a44"), fill("#ffffff"), fill("bold"), 26);
+  row(["F4 · календар", others ? "✅ / ❌ у клітинці → рішення в «Запити»  ·  наведи на клітинку — причина і звіт  ·  (2) — скільки F4 уже дозволили" : "✅ дозволено  ·  ⏳ на розгляді",
+       "", "", "", "", "оновлено " + stamp_(now, "dd.MM HH:mm")], fill("#ffffff"), ["#1f2a44", "#6b7280", "#000000", "#000000", "#000000", "#000000", "#9ca3af"],
+      ["bold", "normal", "normal", "normal", "normal", "normal", "normal"], 36);
+  row(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"], fill("#1f2a44"), fill("#ffffff"), fill("bold"), 32);
   for (let w = 0; w < CAL_WEEKS; w++) {
     const days = [];
     for (let i = 0; i < W; i++) {
@@ -759,12 +745,12 @@ function writeCal_(ss, rows, others) {
     row(days.map((x) => x.d.getDate() + (x.d.getDate() === 1 || (w === 0 && x === days[0]) ? " " + CAL_MONTHS[x.d.getMonth()] : "") + (x.today ? " · сьогодні" : "") + (x.list.length ? "   👥 " + x.list.length : "")),
         days.map((x) => (x.today ? "#2f6fed" : x.past ? "#f1f2f4" : x.weekend ? "#f6f1ff" : "#eef3ff")),
         days.map((x) => (x.today ? "#ffffff" : x.past ? "#9ca3af" : "#1f2a44")),
-        days.map((x) => (x.today ? "bold" : "normal")), 24);
+        days.map((x) => (x.today ? "bold" : "normal")), 34);
     const lines = Math.max(1, ...days.map((x) => x.list.length));
     for (let j = 0; j < lines; j++) {
       row(days.map((x) => (x.list[j] ? label(x.list[j]) : "")),
           days.map((x) => (!x.list[j] ? "#ffffff" : x.list[j].status === F4_YES ? "#e2f5ea" : x.list[j].status === F4_NO ? "#fde8ec" : "#fff4d6")),
-          days.map((x) => (x.past ? "#8b8f98" : "#1f2a44")), fill("normal"), j === lines - 1 ? 30 : 24,
+          days.map((x) => (x.past ? "#8b8f98" : "#1f2a44")), fill("normal"), j === lines - 1 ? 48 : 34,
           days.map((x) => (x.list[j] ? x.list[j].id : "")),
           days.map((x) => (others && x.list[j] ? SpreadsheetApp.newDataValidation().requireValueInList([F4_WAIT, F4_YES, F4_NO].map((st) => label(Object.assign({}, x.list[j], { status: st }))), true).setAllowInvalid(false).build() : null)),
           days.map((x) => (others && x.list[j] ? note(x.list[j]) : "")));
@@ -773,7 +759,9 @@ function writeCal_(ss, rows, others) {
   const H = val.length;
   const all = sh.getRange(1, 1, Math.max(H, sh.getMaxRows()), W);
   all.clear(); all.clearDataValidations(); all.clearNote();
-  sh.getRange(1, 1, H, W).setValues(val).setBackgrounds(bg).setFontColors(fc).setFontWeights(fw);
+  sh.setColumnWidths(1, W, 215);
+  sh.getRange(1, 1, H, W).setNumberFormat("@").setValues(val).setBackgrounds(bg).setFontColors(fc).setFontWeights(fw).setHorizontalAlignment("left");
+  sh.getRange(1, W).setHorizontalAlignment("right");
   sh.getRange(3, 1, H - 2, W).setVerticalAlignment("middle").setWrap(true)
     .setBorder(true, true, true, true, true, false, "#d7dbe3", SpreadsheetApp.BorderStyle.SOLID);
   sh.getRange(1, 1, 1, W).setWrap(false);
@@ -806,7 +794,28 @@ function calDecide_(range) {
   }));
 }
 
-function onF4Daily() { rebuildF4_(); }
+// Фільтр «Запитів» за замовчуванням: з учорашнього дня (учора ще пишуть звіт), минулі — сховані
+function f4DefaultFilter_(q) {
+  const f = q.getFilter();
+  if (!f) return;
+  const now = new Date();
+  f.setColumnFilterCriteria(F_DATE, SpreadsheetApp.newFilterCriteria().whenDateAfter(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2)).build());
+}
+// Після нової заявки чи рішення — перезастосувати фільтри, щоб нові рядки не лишались схованими
+function refreshFilter_(q) {
+  const f = q.getFilter();
+  if (!f) return;
+  for (let c = 1; c <= F_REPORT_AT; c++) {
+    const cr = f.getColumnFilterCriteria(c);
+    if (cr) f.setColumnFilterCriteria(c, cr.copy().build());
+  }
+}
+
+function onF4Daily() {
+  const q = f4_() && f4_().getSheetByName(SHEET_F4);
+  if (q) f4DefaultFilter_(q);
+  rebuildF4_();
+}
 
 function myF4_(name) {
   return f4Rows_().filter((r) => r.name === name).sort((a, b) => b.date - a.date).slice(0, 30)
