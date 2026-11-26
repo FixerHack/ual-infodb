@@ -984,6 +984,9 @@ html.ual-blocked body { overflow: hidden; }
 .f4-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
 @media (max-width: 860px) { .f4-grid { grid-template-columns: 1fr; } }
 .f4-form { display: grid; gap: 10px; }
+.f4-form[hidden], .f4-mine[hidden] { display: none; }
+.f4-grid:has(.f4-mine[hidden]) { grid-template-columns: minmax(0, 640px); }
+.f4-test { background: var(--violet-bg); color: var(--ink); border-radius: 12px; padding: 10px 14px; font-weight: 600; margin-bottom: 10px; }
 .f4-form .field { width: 100%; border-radius: 14px; padding: 12px 14px; font: inherit; }
 .f4-form input.field { height: 50px; }
 .f4-form textarea.field { resize: vertical; min-height: 120px; }

@@ -30,6 +30,7 @@ const SHEET_F4_DAYS = "По днях";
 const SHEET_F4_PUB = "Заявки";
 const SET_GATE = "Вхід лише для студентів";
 const SET_LIMIT = "Пристроїв на людину (за замовчуванням)";
+const SET_F4TEST = "F4 — режим тестування";
 const TAKEN = "Взято";
 const RETURNED = "Повернено";
 const PHONE = "Телефон";
@@ -172,6 +173,10 @@ function setup() {
   }
   if (have.indexOf(SET_LIMIT) < 0) {
     se.appendRow([SET_LIMIT, 3, "Скільки пристроїв може додати одна людина за своїм посиланням. Для окремої людини — колонка «Ліміт пристроїв» у «Людях»"]);
+  }
+  if (have.indexOf(SET_F4TEST) < 0) {
+    se.appendRow([SET_F4TEST, "Так", "Так — F4 у розробці: користуються лише ментори й адміни (тестові заявки позначено «ТЕСТ»); Ні — F4 для студентів і адмінів, ментори не подають"]);
+    se.getRange(se.getLastRow(), 2).setDataValidation(listRule_(["Так", "Ні"]));
   }
 
   const links = site.getSheetByName(SHEET_LINKS);   // посилання тепер прямо в «Людях»
@@ -365,6 +370,9 @@ function settings_() {
   });
 }
 const gateOn_ = () => String(settings_()[SET_GATE] || "").trim() === "Так";
+const f4Test_ = () => String(settings_()[SET_F4TEST] == null ? "Так" : settings_()[SET_F4TEST]).trim() !== "Ні";
+// Хто може подавати F4: у тестовому режимі — ментори й адміни, у робочому — студенти й адміни
+const f4Allowed_ = (role, test) => role === ROLE_ADMIN || (test ? role === ROLE_MENTOR : role === ROLE_STUDENT);
 const defaultLimit_ = () => { const v = Number(settings_()[SET_LIMIT]); return v > 0 ? Math.floor(v) : 3; };
 
 function people_() {
@@ -787,9 +795,10 @@ function doGet(e) {
     return json_({ ok: true, status: status === ACC_REJ ? "rejected" : "pending" });
   }
   if (p.f4) {
-    const who = whoBySession_(p.token);
-    if (!who || !who.ok) return json_({ ok: false, auth: false, error: "Спершу підтверди, хто ти" });
-    return json_({ ok: true, name: who.name, role: who.role, mine: who.role === ROLE_MENTOR ? [] : myF4_(who.name) });
+    const test = f4Test_(), who = whoBySession_(p.token);
+    if (!who || !who.ok) return json_({ ok: false, auth: false, test, error: "Спершу підтверди, хто ти" });
+    const allowed = f4Allowed_(who.role, test);
+    return json_({ ok: true, test, allowed, name: who.name, role: who.role, mine: allowed ? myF4_(who.name) : [] });
   }
   return json_({ ok: true, loans: loans_(), students: people_().list, catalog: catalog_().map((b) => b.id).sort().join(",") });
 }
@@ -850,10 +859,12 @@ function doPost(e) {
     // Усе нижче — лише для впізнаних людей
     const who = whoBySession_(d.token, dev, type, ua);
 
-    // F4: заявка на вільний день (подають студенти й адміни; ментори — ні)
+    // F4: заявка на вільний день (робочий режим — студенти й адміни; тестовий — ментори й адміни)
     if (d.action === "f4") {
       if (!who || !who.ok) return json_({ ok: false, auth: false, error: "Спершу підтверди, хто ти" });
-      if (who.role === ROLE_MENTOR) return json_({ ok: false, error: "Заявки F4 подають студенти. Рішення — у таблиці F4." });
+      const test = f4Test_();
+      if (!f4Allowed_(who.role, test)) return json_({ ok: false, test, allowed: false,
+        error: test ? "F4 ще в розробці — скоро запрацює." : "Заявки F4 подають студенти. Рішення — у таблиці F4." });
       const day = parseDay_(d.date);
       const today = new Date(); today.setHours(0, 0, 0, 0);
       if (!day) return json_({ ok: false, error: "Обери дату" });
@@ -863,7 +874,7 @@ function doPost(e) {
       if (f4Rows_().some((r) => r.name === who.name && dayKey_(r.date) === dayKey_(day) && r.status !== F4_NO)) {
         return json_({ ok: false, error: "На цей день у тебе вже є заявка", mine: myF4_(who.name) });
       }
-      f4_().getSheetByName(SHEET_F4).appendRow([newToken_(), new Date(), who.name, day, reason, F4_WAIT, ""]);
+      f4_().getSheetByName(SHEET_F4).appendRow([newToken_(), new Date(), who.name, day, reason, F4_WAIT, test ? "ТЕСТ" : ""]);
       logEvent_("F4: заявка", stamp_(day, "dd.MM.yyyy"), who.name, dev, type, "");
       rebuildF4_();
       return json_({ ok: true, mine: myF4_(who.name) });
