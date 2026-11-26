@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=20261147">
+  <link rel="stylesheet" href="assets/style.css?v=20261152">
 </head>
 <body>
 <main>
@@ -18,7 +18,7 @@
     <section class="hero">
       <span class="eyebrow">F4</span>
       <h1>Заявка на вільний день</h1>
-      <p class="lead">Обери день і коротко поясни причину. Адміністрація розгляне заявку — статус з'явиться тут.</p>
+      <p class="lead">Обери день і причину. Адміністрація розгляне заявку — статус з'явиться тут.</p>
     </section>
 
     <section class="f4-grid">
@@ -28,9 +28,12 @@
         <label class="f4-label" for="date">День</label>
         <input class="field" type="date" id="date" required>
         <div class="f4-day" id="day"></div>
-        <label class="f4-label" for="reason">Причина</label>
-        <textarea class="field" id="reason" rows="5" maxlength="600" required placeholder="Наприклад: їду на весілля сестри до Тернополя, повернуся в неділю ввечері"></textarea>
-        <div class="f4-count"><span id="count">0</span> / 600</div>
+        <label class="f4-label" for="rtype">Причина</label>
+        <select class="field" id="rtype"></select>
+        <div id="other">
+          <textarea class="field" id="reason" rows="5" maxlength="600" placeholder="Наприклад: їду на весілля сестри до Тернополя, повернуся в неділю ввечері"></textarea>
+          <div class="f4-count"><span id="count">0</span> / 600</div>
+        </div>
         <p class="detail-note">Причину бачить лише адміністрація. Іншим студентам видно тільки дату й рішення.</p>
         <button class="btn" type="submit" id="send">Подати заявку</button>
       </form>
@@ -56,6 +59,19 @@ const today = new Date();
 $("date").min = iso(today);
 $("date").addEventListener("input", () => { $("day").textContent = $("date").value ? nice($("date").value) : ""; });
 $("reason").addEventListener("input", () => { $("count").textContent = $("reason").value.length; });
+// Причина: зі списку (аркуш «Причини» у таблиці F4) або «Інше» з власним текстом
+const OTHER = "Інше";
+const isOther = () => $("rtype").value === OTHER;
+function setReasons(list) {
+  list = (list || []).filter((x) => x && x !== OTHER);
+  $("rtype").innerHTML = (list.length ? `<option value="">— Обери причину —</option>` : "")
+    + list.map((x) => `<option>${esc(x)}</option>`).join("") + `<option>${OTHER}</option>`;
+  $("rtype").hidden = !list.length;            // список ще не заповнено — лише власний текст
+  syncOther();
+}
+function syncOther() { $("other").hidden = !isOther(); if (isOther() && !$("rtype").hidden) $("reason").focus(); }
+$("rtype").addEventListener("change", syncOther);
+$("other").hidden = true;
 
 // Стан сторінки: gate — повідомлення замість форми (вхід / у розробці), form — сама форма
 function showGate(html, hideMine) {
@@ -77,9 +93,46 @@ function renderMine(list) {
         const [cls, label] = STATUS[r.status] || STATUS["На розгляді"];
         return `<article class="f4-item ${cls}">
           <div class="f4-item-top"><b>${esc(nice(r.date))}</b><span class="f4-st ${cls}">${label}</span></div>
-          <p>${esc(r.reason)}</p>${r.comment ? `<div class="f4-comment">💬 ${esc(r.comment)}</div>` : ""}</article>`;
+          <p>${esc(r.reason)}</p>${r.comment ? `<div class="f4-comment">💬 ${esc(r.comment)}</div>` : ""}${reportBlock(r)}</article>`;
       }).join("")
     : `<p class="detail-note">Заявок ще немає.</p>`;
+}
+
+// Звіт за дозволений день: з дня F4 до 23:59 наступного дня
+const short = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("uk-UA", { day: "numeric", month: "long" }); };
+const stamp = (isoS) => { const d = new Date(isoS); return isNaN(d) ? "" : d.toLocaleString("uk-UA", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }); };
+function reportBlock(r) {
+  if (r.status !== "Дозволено" || !r.reportState) return "";
+  const dl = r.deadline ? `до ${short(r.deadline)}, 23:59` : "";
+  if (r.reportState === "soon") return `<div class="f4-report muted">📝 Звіт за день можна буде написати ${short(r.date)} (${dl}).</div>`;
+  if (r.reportState === "missed") return `<div class="f4-report late">⚠️ Звіт не подано — дедлайн минув.</div>`;
+  const done = r.report ? `<div class="f4-report-text"><b>Твій звіт</b>${r.reportAt ? ` · ${esc(stamp(r.reportAt))}` : ""}<p>${esc(r.report)}</p></div>` : "";
+  if (r.reportState === "closed") return `<div class="f4-report">${done}</div>`;
+  return `<div class="f4-report">${done}
+    <form class="f4-report-form" data-id="${esc(r.id)}">
+      <label class="f4-label">${r.report ? "Оновити звіт" : "📝 Звіт за день"} <span class="f4-dl">${dl}</span></label>
+      <textarea class="field" rows="4" maxlength="3000" placeholder="Як минув день: що робив(ла), де був(ла), що встиг(ла)"></textarea>
+      <button class="btn small" type="submit">${r.report ? "Оновити звіт" : "Надіслати звіт"}</button>
+    </form></div>`;
+}
+$("mine").addEventListener("submit", async (e) => {
+  const f = e.target.closest(".f4-report-form");
+  if (!f) return;
+  e.preventDefault();
+  const ta = f.querySelector("textarea"), btn = f.querySelector("button");
+  if (ta.value.trim().length < 10) { toast("Напиши звіт трохи докладніше", "err"); return ta.focus(); }
+  btn.disabled = true; btn.textContent = "Надсилаємо…";
+  const r = await post({ action: "f4report", id: f.dataset.id, report: ta.value.trim() });
+  if (r.auth === false) { UAL.clearIdentity(); return needLogin(r.test !== false); }
+  if (r.mine) renderMine(r.mine);
+  else { btn.disabled = false; btn.textContent = "Надіслати звіт"; }
+  toast(r.ok ? "Звіт надіслано. Дякуємо!" : r.error, r.ok ? "ok" : "err");
+});
+async function post(body) {
+  try {
+    return await (await fetch(UAL_API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ ...body, token: UAL.token, device: UAL.device, ua: UAL.ua, type: UAL.type }) })).json();
+  } catch (err) { return { ok: false, error: "Не вдалося надіслати. Перевір інтернет і спробуй ще раз." }; }
 }
 
 function openForm(r) {
@@ -87,6 +140,7 @@ function openForm(r) {
   $("mine").closest(".f4-mine").hidden = false;
   $("who").innerHTML = (r.test ? `<div class="f4-test">🧪 Тестовий режим: студенти F4 поки не бачать, твої заявки позначаються «ТЕСТ».</div>` : "")
     + `Подаєш як <b>${esc(r.name || UAL.me || "студент")}</b> · <a href="vhid?next=f4">не ти?</a>`;
+  setReasons(r.reasons);
   renderMine(r.mine);
 }
 
@@ -105,20 +159,17 @@ async function load() {
 $("form").addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!$("date").value) return $("date").focus();
-  if ($("reason").value.trim().length < 5) return $("reason").focus();
+  if (!$("rtype").value) { toast("Обери причину", "err"); return $("rtype").focus(); }
+  if (isOther() && $("reason").value.trim().length < 5) { toast("Напиши причину трохи докладніше", "err"); return $("reason").focus(); }
   const btn = $("send");
   btn.disabled = true; btn.textContent = "Надсилаємо…";
-  let r;
-  try {
-    r = await (await fetch(UAL_API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "f4", token: UAL.token, date: $("date").value, reason: $("reason").value.trim(), device: UAL.device, ua: UAL.ua, type: UAL.type }) })).json();
-  } catch (err) { r = { ok: false, error: "Не вдалося надіслати. Перевір інтернет і спробуй ще раз." }; }
+  const r = await post({ action: "f4", date: $("date").value, reasonType: $("rtype").value, reason: isOther() ? $("reason").value.trim() : "" });
   btn.disabled = false; btn.textContent = "Подати заявку";
   if (r.auth === false) { UAL.clearIdentity(); return needLogin(r.test !== false); }
   if (r.allowed === false) { toast(r.error, "err"); return devView(); }
   if (r.mine) renderMine(r.mine);
   if (!r.ok) return toast(r.error, "err");
-  $("form").reset(); $("day").textContent = ""; $("count").textContent = "0";
+  $("form").reset(); $("day").textContent = ""; $("count").textContent = "0"; syncOther();
   toast("Заявку подано! Чекай на рішення.", "ok");
 });
 

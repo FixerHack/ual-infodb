@@ -986,9 +986,20 @@ html.ual-blocked body { overflow: hidden; }
 .f4-form { display: grid; gap: 10px; }
 .f4-form[hidden], .f4-mine[hidden] { display: none; }
 .f4-grid:has(.f4-mine[hidden]) { grid-template-columns: minmax(0, 640px); }
+.f4-report { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); display: grid; gap: 10px; }
+.f4-report.muted { color: var(--muted); font-size: .92rem; }
+.f4-report.late { color: var(--bad); font-weight: 600; font-size: .92rem; }
+.f4-report-text { background: var(--violet-bg); border-radius: 12px; padding: 10px 12px; font-size: .92rem; }
+.f4-report-text p { margin: 6px 0 0; white-space: pre-wrap; }
+.f4-report-form { display: grid; gap: 8px; }
+.f4-report-form .field { width: 100%; border-radius: 12px; padding: 10px 12px; font: inherit; resize: vertical; }
+.f4-report-form .btn { justify-self: start; }
+.f4-dl { font-weight: 500; color: var(--muted); font-size: .85rem; margin-left: 6px; }
 .f4-test { background: var(--violet-bg); color: var(--ink); border-radius: 12px; padding: 10px 14px; font-weight: 600; margin-bottom: 10px; }
 .f4-form .field { width: 100%; border-radius: 14px; padding: 12px 14px; font: inherit; }
-.f4-form input.field { height: 50px; }
+.f4-form input.field, .f4-form select.field { height: 50px; }
+.f4-form .field[hidden], #other[hidden] { display: none; }
+#other { display: grid; gap: 6px; }
 .f4-form textarea.field { resize: vertical; min-height: 120px; }
 .f4-who { font-size: .95rem; color: var(--muted); padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
 .f4-who a { color: var(--violet); }

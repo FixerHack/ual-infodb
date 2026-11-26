@@ -29,6 +29,11 @@ const SHEET_SETTINGS = "Налаштування";
 const SHEET_F4 = "Запити";
 const SHEET_F4_DAYS = "По днях";
 const SHEET_F4_PUB = "Заявки";
+const SHEET_F4_REASONS = "Причини";
+// Колонки «F4 → Запити»
+const F4_HEADERS = ["ID", "Подано", "Студент", "Дата", "Причина", "Рішення", "Коментар", "Інших схвалених F4", "Звіт за день", "Звіт подано"];
+const F_ID = 1, F_AT = 2, F_NAME = 3, F_DATE = 4, F_REASON = 5, F_STATUS = 6, F_COMMENT = 7, F_COUNT = 8, F_REPORT = 9, F_REPORT_AT = 10;
+const F4_OTHER = "Інше";
 const SET_GATE = "Вхід лише для студентів";
 const SET_LIMIT = "Пристроїв на людину (за замовчуванням)";
 const SET_F4TEST = "F4 — режим тестування";
@@ -47,9 +52,10 @@ const SEEN_EVERY_MS = 60 * 60 * 1000; // «Востаннє на сайті» о
 
 // Колонки аркуша «Люди»
 const P_NAME = 1, P_ROLE = 2, P_ACCESS = 3, P_BLOCKED = 4, P_LIMIT = 5, P_DEVICES = 6, P_COUNT = 7, P_BOOKS = 8,
-  P_LINK = 9, P_RELINK = 10, P_CODE = 11, P_OLD = 12;
+  P_LINK = 9, P_RELINK = 10, P_CODE = 11, P_OLD = 12, P_ACCOUNT = 13;
+const ACC_ACTIVE = "Активний", ACC_INACTIVE = "Неактивний";
 const PEOPLE_HEADERS = ["Ім'я", "Роль", "Доступ", "Заблоковано", "Ліміт пристроїв", "Пристроїв", "Книжок на руках", "Які книжки",
-  "Особисте посилання", "Нове посилання", "Код посилання", "Старий код"];
+  "Особисте посилання", "Нове посилання", "Код посилання", "Старий код", "Акаунт"];
 // Колонки аркуша «Пристрої»
 const D_NAME = 1, D_TYPE = 2, D_UA = 3, D_ADDED = 4, D_SEEN = 5, D_LOGOUT = 6, D_DEV = 7, D_SESSION = 8;
 const DEVICE_HEADERS = ["Людина", "Тип", "Браузер", "Додано", "Востаннє на сайті", "Вийти", "Код пристрою", "Сесія"];
@@ -242,7 +248,7 @@ function setupPeople_(site) {
     } else {
       rows = STUDENTS.map((n) => [n, ROLE_STUDENT, true, false, "", "", "", "", "", false, newToken_(), ""]);
     }
-    if (rows.length) pp.getRange(2, 1, rows.length, PEOPLE_HEADERS.length).setValues(rows);
+    if (rows.length) pp.getRange(2, 1, rows.length, P_OLD).setValues(rows);
     pp.setFrozenRows(1);
     pp.setColumnWidth(P_NAME, 220);
     pp.setColumnWidth(P_BOOKS, 320);
@@ -251,7 +257,16 @@ function setupPeople_(site) {
   }
   PEOPLE_HEADERS.forEach((h, i) => {
     const cell = pp.getRange(1, i + 1);
-    if (!String(cell.getValue()).trim()) cell.setValue(h).setFontWeight("bold");
+    if (String(cell.getValue()).trim()) return;
+    cell.setValue(h).setFontWeight("bold");
+    if (i + 1 === P_ACCOUNT) {                       // колонка «Акаунт» з'явилась уперше — кольори
+      const col = pp.getRange(2, P_ACCOUNT, 1000, 1);
+      pp.setConditionalFormatRules(pp.getConditionalFormatRules().concat([
+        SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo(ACC_ACTIVE).setBackground("#e2f5ea").setFontColor("#1f8a5a").setBold(true).setRanges([col]).build(),
+        SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo(ACC_INACTIVE).setFontColor("#9a9a9a").setRanges([col]).build(),
+      ]));
+      pp.setColumnWidth(P_ACCOUNT, 120);
+    }
   });
   formatPeople_(pp);
 }
@@ -289,7 +304,7 @@ function setupF4_() {
   if (!f4_()) {
     const ss = SpreadsheetApp.create("УАЛ · F4");
     const q = ss.getSheets()[0].setName(SHEET_F4);
-    bold_(q, ["ID", "Подано", "Студент", "Дата", "Причина", "Рішення", "Коментар"]);
+    bold_(q, F4_HEADERS.slice(0, 7));
     q.setFrozenRows(1);
     q.getRange("B2:B").setNumberFormat("dd.MM.yyyy HH:mm");
     q.getRange("D2:D").setNumberFormat("dd.MM.yyyy (ddd)");
@@ -324,6 +339,25 @@ function setupF4_() {
     d.setColumnWidths(2, 2, 300);
     PROPS.setProperty("f4PubId", ss.getId());
     memo_.f4PubId = ss;
+  }
+  // нові колонки «Запитів» (кількість схвалених, звіт) — і для вже створеної таблиці
+  const q = f4_().getSheetByName(SHEET_F4);
+  if (q) {
+    F4_HEADERS.forEach((h, i) => {
+      const cell = q.getRange(1, i + 1);
+      if (!String(cell.getValue()).trim()) cell.setValue(h).setFontWeight("bold");
+    });
+    q.getRange(2, F_REPORT_AT, 1000, 1).setNumberFormat("dd.MM.yyyy HH:mm");
+    q.getRange(2, F_REPORT, 1000, 1).setWrap(true).setVerticalAlignment("top");
+    q.setColumnWidth(F_COUNT, 150);
+    q.setColumnWidth(F_REPORT, 420);
+  }
+  // «Причини»: список, з якого обирають на сайті (плюс завжди є «Інше» з власним текстом)
+  if (!f4_().getSheetByName(SHEET_F4_REASONS)) {
+    const r = f4_().insertSheet(SHEET_F4_REASONS);
+    bold_(r, ["Причина"]);
+    r.setColumnWidth(1, 420);
+    r.getRange("C1").setValue("Кожна причина — окремий рядок у колонці A. На сайті до списку автоматично додається «Інше» з полем для власного тексту.");
   }
   rebuildF4_();
 }
@@ -499,6 +533,8 @@ function countDevices_() {
   devices_().rows.forEach((d) => { cnt[d.name] = (cnt[d.name] || 0) + 1; });
   const names = pp.getRange(2, P_NAME, last - 1, 1).getValues();
   pp.getRange(2, P_DEVICES, names.length, 1).setValues(names.map(([nm]) => [String(nm).trim() ? cnt[String(nm).trim()] || 0 : ""]));
+  // «Акаунт»: активний, якщо людина вже ввійшла хоч з одного пристрою
+  pp.getRange(2, P_ACCOUNT, names.length, 1).setValues(names.map(([nm]) => [!String(nm).trim() ? "" : cnt[String(nm).trim()] ? ACC_ACTIVE : ACC_INACTIVE]));
 }
 
 // Що заблоковано для пристрою: "" — нічого, BLOCK_SITE — увесь сайт, BLOCK_BOOKS — лише книжки
@@ -576,10 +612,40 @@ function f4Rows_() {
   const ss = f4_();
   const q = ss && ss.getSheetByName(SHEET_F4);
   if (!q || q.getLastRow() < 2) return [];
-  return q.getRange(2, 1, q.getLastRow() - 1, 7).getValues()
-    .filter((r) => String(r[2]).trim() && r[3] instanceof Date)
-    .map((r) => ({ id: String(r[0]), at: r[1], name: String(r[2]).trim(), date: r[3], reason: String(r[4]),
-                   status: [F4_YES, F4_NO].indexOf(String(r[5]).trim()) >= 0 ? String(r[5]).trim() : F4_WAIT, comment: String(r[6] || "") }));
+  return q.getRange(2, 1, q.getLastRow() - 1, F_REPORT_AT).getValues()
+    .map((r, i) => ({ row: i + 2, id: String(r[F_ID - 1]), at: r[F_AT - 1], name: String(r[F_NAME - 1]).trim(), date: r[F_DATE - 1], reason: String(r[F_REASON - 1]),
+                      status: [F4_YES, F4_NO].indexOf(String(r[F_STATUS - 1]).trim()) >= 0 ? String(r[F_STATUS - 1]).trim() : F4_WAIT,
+                      comment: String(r[F_COMMENT - 1] || ""), report: String(r[F_REPORT - 1] || ""), reportAt: r[F_REPORT_AT - 1] }))
+    .filter((r) => r.name && r.date instanceof Date);
+}
+const isTestF4_ = (r) => String(r.comment).trim().toUpperCase() === "ТЕСТ";
+
+// Причини зі списку (аркуш «Причини» в приватній таблиці F4)
+function f4Reasons_() {
+  const sh = f4_() && f4_().getSheetByName(SHEET_F4_REASONS);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().map((r) => String(r[0]).trim())
+    .filter((v, i, a) => v && v !== F4_OTHER && a.indexOf(v) === i).slice(0, 50);
+}
+
+// Перший вільний рядок «Запитів» (якщо рядки почистили вручну — пишемо в них, а не в кінець)
+function f4FreeRow_(q) {
+  const last = q.getLastRow();
+  if (last >= 2) {
+    const v = q.getRange(2, F_NAME, last - 1, 2).getValues();
+    for (let i = 0; i < v.length; i++) if (!String(v[i][0]).trim() && !String(v[i][1]).trim()) return i + 2;
+  }
+  return last + 1;
+}
+
+// Звіт за день: з дня F4 до 23:59 наступного дня
+const nextDayKey_ = (d) => dayKey_(new Date(d.getTime() + 864e5));
+function reportState_(r) {
+  if (r.status !== F4_YES) return "";
+  const today = dayKey_(new Date()), day = dayKey_(r.date), last = nextDayKey_(r.date);
+  if (today < day) return "soon";
+  if (today <= last) return "open";
+  return r.report ? "closed" : "missed";
 }
 
 // «По днях» у приватній таблиці + обидва аркуші публічної (без причин)
@@ -602,6 +668,16 @@ function rebuildF4_() {
     }
   };
   const pv = f4_(), pub = f4pub_();
+  // «Інших схвалених F4» — скільки ще днів уже дозволили цій людині (без тестових заявок)
+  const q = pv && pv.getSheetByName(SHEET_F4);
+  if (q && q.getLastRow() >= 2) {
+    const yes = {};
+    rows.forEach((r) => { if (r.status === F4_YES && !isTestF4_(r)) yes[r.name] = (yes[r.name] || 0) + 1; });
+    const byRow = {};
+    rows.forEach((r) => { byRow[r.row] = (yes[r.name] || 0) - (r.status === F4_YES && !isTestF4_(r) ? 1 : 0); });
+    const n = q.getLastRow() - 1;
+    q.getRange(2, F_COUNT, n, 1).setValues(Array.from({ length: n }, (_, i) => [byRow[i + 2] === undefined ? "" : byRow[i + 2]]));
+  }
   if (pv) write(pv.getSheetByName(SHEET_F4_DAYS), list.map((d) => [d.date, d.yes.join("\n"), d.wait.join("\n"), d.no.join("\n"), d.yes.length + d.wait.length + d.no.length]), 5);
   if (pub) {
     write(pub.getSheetByName(SHEET_F4_PUB), rows.map((r) => [r.date, r.name, r.status]), 3);
@@ -611,7 +687,9 @@ function rebuildF4_() {
 
 function myF4_(name) {
   return f4Rows_().filter((r) => r.name === name).sort((a, b) => b.date - a.date).slice(0, 30)
-    .map((r) => ({ date: dayKey_(r.date), status: r.status, reason: r.reason, comment: r.comment }));
+    .map((r) => ({ id: r.id, date: dayKey_(r.date), status: r.status, reason: r.reason, comment: r.comment,
+                   report: r.report, reportAt: r.reportAt instanceof Date ? r.reportAt.toISOString() : "",
+                   reportState: reportState_(r), deadline: r.status === F4_YES ? nextDayKey_(r.date) : "" }));
 }
 
 // ============================================================================
@@ -799,7 +877,7 @@ function doGet(e) {
     const test = f4Test_(), who = whoBySession_(p.token);
     if (!who || !who.ok) return json_({ ok: false, auth: false, test, error: "Спершу підтверди, хто ти" });
     const allowed = f4Allowed_(who.role, test);
-    return json_({ ok: true, test, allowed, name: who.name, role: who.role, mine: allowed ? myF4_(who.name) : [] });
+    return json_({ ok: true, test, allowed, name: who.name, role: who.role, mine: allowed ? myF4_(who.name) : [], reasons: allowed ? f4Reasons_() : [] });
   }
   return json_({ ok: true, loans: loans_(), students: people_().list, catalog: catalog_().map((b) => b.id).sort().join(",") });
 }
@@ -870,14 +948,35 @@ function doPost(e) {
       const today = new Date(); today.setHours(0, 0, 0, 0);
       if (!day) return json_({ ok: false, error: "Обери дату" });
       if (day < today) return json_({ ok: false, error: "Дата вже минула" });
-      const reason = String(d.reason || "").trim().slice(0, 600);
-      if (reason.length < 5) return json_({ ok: false, error: "Напиши причину трохи докладніше" });
+      const list = f4Reasons_(), kind = String(d.reasonType || F4_OTHER).trim(), text = String(d.reason || "").trim().slice(0, 600);
+      let reason;
+      if (kind !== F4_OTHER && list.indexOf(kind) >= 0) reason = kind + (text ? " — " + text : "");
+      else {
+        if (text.length < 5) return json_({ ok: false, error: "Напиши причину трохи докладніше" });
+        reason = list.length ? F4_OTHER + ": " + text : text;
+      }
       if (f4Rows_().some((r) => r.name === who.name && dayKey_(r.date) === dayKey_(day) && r.status !== F4_NO)) {
         return json_({ ok: false, error: "На цей день у тебе вже є заявка", mine: myF4_(who.name) });
       }
-      f4_().getSheetByName(SHEET_F4).appendRow([newToken_(), new Date(), who.name, day, reason, F4_WAIT, test ? "ТЕСТ" : ""]);
+      const q = f4_().getSheetByName(SHEET_F4), at = f4FreeRow_(q);
+      q.getRange(at, 1, 1, F_REPORT_AT).setValues([[newToken_(), new Date(), who.name, day, reason, F4_WAIT, test ? "ТЕСТ" : "", "", "", ""]]);
       logEvent_("F4: заявка", stamp_(day, "dd.MM.yyyy"), who.name, dev, type, "");
       rebuildF4_();
+      return json_({ ok: true, mine: myF4_(who.name) });
+    }
+
+    // F4: звіт за дозволений день (з дня F4 до 23:59 наступного дня)
+    if (d.action === "f4report") {
+      if (!who || !who.ok) return json_({ ok: false, auth: false, error: "Спершу підтверди, хто ти" });
+      const r = f4Rows_().find((x) => x.id === String(d.id || "") && x.name === who.name);
+      if (!r) return json_({ ok: false, error: "Заявку не знайдено" });
+      const st = reportState_(r);
+      if (st === "soon") return json_({ ok: false, error: "Звіт можна написати в день F4 або наступного дня" });
+      if (st !== "open") return json_({ ok: false, error: r.status === F4_YES ? "Час на звіт минув (до 23:59 наступного дня)" : "Звіт пишуть лише за дозволений день", mine: myF4_(who.name) });
+      const text = String(d.report || "").trim().slice(0, 3000);
+      if (text.length < 10) return json_({ ok: false, error: "Напиши звіт трохи докладніше" });
+      f4_().getSheetByName(SHEET_F4).getRange(r.row, F_REPORT, 1, 2).setValues([[text, new Date()]]);
+      logEvent_(r.report ? "F4: звіт оновлено" : "F4: звіт", stamp_(r.date, "dd.MM.yyyy"), who.name, dev, type, "");
       return json_({ ok: true, mine: myF4_(who.name) });
     }
 
