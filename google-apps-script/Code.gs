@@ -3,8 +3,8 @@
 // Скрипт прив'язаний до таблиці «Бібліотека» і сам створює та веде ще три таблиці:
 //   Бібліотека (ця)        — Стан книжок, Журнал
 //   УАЛ · Сайт             — Люди, Пристрої, Логи, Блокування, Запити доступу, Налаштування
-//   УАЛ · F4               — Запити (з причинами, рішення), По днях         — лише для адміністрації
-//   УАЛ · F4 (публічна)    — Заявки, По днях — без причин                     — можна поділитися зі студентами
+//   УАЛ · F4               — Календар, Запити (з причинами, рішення), По днях — лише для адміністрації
+//   УАЛ · F4 (публічна)    — Календар, Заявки, По днях — без причин           — можна поділитися зі студентами
 // ID нових таблиць зберігаються у властивостях скрипта. Посилання на них — у журналі виконання setup().
 //
 // Як працює вхід:
@@ -30,6 +30,8 @@ const SHEET_F4 = "Запити";
 const SHEET_F4_DAYS = "По днях";
 const SHEET_F4_PUB = "Заявки";
 const SHEET_F4_REASONS = "Причини";
+const SHEET_F4_CAL = "Календар";
+const CAL_WEEKS_BACK = 1, CAL_WEEKS = 6; // минулий тиждень + поточний + 4 наступні
 // Колонки «F4 → Запити»
 const F4_HEADERS = ["ID", "Подано", "Студент", "Дата", "Причина", "Рішення", "Коментар", "Інших схвалених F4", "Звіт за день", "Звіт подано"];
 const F_ID = 1, F_AT = 2, F_NAME = 3, F_DATE = 4, F_REASON = 5, F_STATUS = 6, F_COMMENT = 7, F_COUNT = 8, F_REPORT = 9, F_REPORT_AT = 10;
@@ -391,6 +393,9 @@ function installTriggers_() {
   [["onLibEdit", lib_().getId()], ["onSiteEdit", PROPS.getProperty("siteId")], ["onF4Edit", PROPS.getProperty("f4Id")]].forEach(([fn, id]) => {
     if (id && have.indexOf(fn + "|" + id) < 0) ScriptApp.newTrigger(fn).forSpreadsheet(id).onEdit().create();
   });
+  // щоночі зсуваємо «Календар» F4 на новий день
+  if (!ScriptApp.getProjectTriggers().some((t) => t.getHandlerFunction() === "onF4Daily"))
+    ScriptApp.newTrigger("onF4Daily").timeBased().everyDays(1).atHour(0).nearMinute(5).create();
   const sid = PROPS.getProperty("siteId");
   if (sid && have.indexOf("onSiteChange|" + sid) < 0) ScriptApp.newTrigger("onSiteChange").forSpreadsheet(sid).onChange().create();
 }
@@ -683,12 +688,13 @@ function rebuildF4_() {
   };
   const pv = f4_(), pub = f4pub_();
   // «Інших схвалених F4» — скільки ще днів уже дозволили цій людині (без тестових заявок)
+  const yes = {};
+  rows.forEach((r) => { if (r.status === F4_YES && !isTestF4_(r)) yes[r.name] = (yes[r.name] || 0) + 1; });
+  const others = (r) => (yes[r.name] || 0) - (r.status === F4_YES && !isTestF4_(r) ? 1 : 0);
   const q = pv && pv.getSheetByName(SHEET_F4);
   if (q && q.getLastRow() >= 2) {
-    const yes = {};
-    rows.forEach((r) => { if (r.status === F4_YES && !isTestF4_(r)) yes[r.name] = (yes[r.name] || 0) + 1; });
     const byRow = {};
-    rows.forEach((r) => { byRow[r.row] = (yes[r.name] || 0) - (r.status === F4_YES && !isTestF4_(r) ? 1 : 0); });
+    rows.forEach((r) => { byRow[r.row] = others(r); });
     const n = q.getLastRow() - 1;
     q.getRange(2, F_COUNT, n, 1).setValues(Array.from({ length: n }, (_, i) => [byRow[i + 2] === undefined ? "" : byRow[i + 2]]));
   }
@@ -697,7 +703,69 @@ function rebuildF4_() {
     write(pub.getSheetByName(SHEET_F4_PUB), rows.map((r) => [r.date, r.name, r.status]), 3);
     write(pub.getSheetByName(SHEET_F4_DAYS), list.filter((d) => d.yes.length || d.wait.length).map((d) => [d.date, d.yes.join("\n"), d.wait.join("\n")]), 3);
   }
+  if (pv) writeCal_(pv, rows, others);
+  if (pub) writeCal_(pub, rows.filter((r) => r.status !== F4_NO), null);
 }
+
+// «Календар»: тиждень — два рядки (дати й імена), Пн…Нд у колонках.
+// Вікно: минулий тиждень + 5 наступних; щоночі зсувається само (тригер onF4Daily).
+// others — лише для приватної таблиці: скільки ще F4 дозволили людині.
+const CAL_ICON = { [F4_YES]: "✅", [F4_WAIT]: "⏳", [F4_NO]: "❌" };
+const CAL_MONTHS = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
+const CAL_ORDER = { [F4_YES]: 0, [F4_WAIT]: 1, [F4_NO]: 2 };
+function writeCal_(ss, rows, others) {
+  let sh = ss.getSheetByName(SHEET_F4_CAL);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_F4_CAL, 0);
+    sh.setColumnWidths(1, 7, 175);
+    sh.setFrozenRows(2);
+    try { sh.setHiddenGridlines(true); } catch (e) {}
+  }
+  const now = new Date(), today = dayKey_(now);
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7) - 7 * CAL_WEEKS_BACK);
+  const byDay = {};
+  rows.forEach((r) => { const k = dayKey_(r.date); (byDay[k] = byDay[k] || []).push(r); });
+
+  const W = 7, H = 2 + CAL_WEEKS * 2;
+  const val = [], bg = [], fc = [], fw = [], heights = [];
+  const row = (v, b, c, w) => { val.push(v); bg.push(b); fc.push(c); fw.push(w); };
+  const fill = (x) => Array(W).fill(x);
+  row(["F4 · календар", "", others ? "✅ дозволено · ⏳ на розгляді · ❌ заборонено · (2) — скільки F4 людині вже дозволили" : "✅ дозволено · ⏳ на розгляді",
+       "", "", "", "оновлено " + stamp_(now, "dd.MM HH:mm")], fill("#ffffff"), ["#1f2a44", "#000000", "#6b7280", "#000000", "#000000", "#000000", "#9ca3af"], ["bold", "normal", "normal", "normal", "normal", "normal", "normal"]);
+  row(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"], fill("#1f2a44"), fill("#ffffff"), fill("bold"));
+  for (let w = 0; w < CAL_WEEKS; w++) {
+    const dv = [], db = [], dc = [], dw = [], nv = [], nb = [], nc = [];
+    let lines = 1;
+    for (let i = 0; i < W; i++) {
+      const d = new Date(start.getTime()); d.setDate(start.getDate() + w * 7 + i);
+      const k = dayKey_(d), past = k < today, isToday = k === today;
+      const list = (byDay[k] || []).slice().sort((a, b) => CAL_ORDER[a.status] - CAL_ORDER[b.status] || a.name.localeCompare(b.name, "uk"));
+      const n = list.length;
+      dv.push(d.getDate() + (d.getDate() === 1 || (w === 0 && i === 0) ? " " + CAL_MONTHS[d.getMonth()] : "") + (isToday ? " · сьогодні" : "") + (n ? "   👥 " + n : ""));
+      db.push(isToday ? "#2f6fed" : past ? "#f1f2f4" : i >= 5 ? "#f6f1ff" : "#eef3ff");
+      dc.push(isToday ? "#ffffff" : past ? "#9ca3af" : "#1f2a44");
+      dw.push(isToday ? "bold" : "normal");
+      nv.push(list.map((r) => CAL_ICON[r.status] + " " + r.name + (others && others(r) ? " (" + others(r) + ")" : "") + (others && isTestF4_(r) ? " · тест" : "")).join("\n"));
+      lines = Math.max(lines, list.length);
+      const has = (st) => list.some((r) => r.status === st);
+      nb.push(has(F4_WAIT) ? "#fff4d6" : has(F4_YES) ? "#e2f5ea" : has(F4_NO) ? "#fde8ec" : "#ffffff");
+      nc.push(past ? "#8b8f98" : "#1f2a44");
+    }
+    row(dv, db, dc, dw);
+    row(nv, nb, nc, fill("normal"));
+    heights.push(Math.max(56, lines * 21 + 14));
+  }
+  if (sh.getMaxRows() > H) sh.getRange(H + 1, 1, sh.getMaxRows() - H, W).clear();
+  const g = sh.getRange(1, 1, H, W);
+  g.setValues(val).setBackgrounds(bg).setFontColors(fc).setFontWeights(fw);
+  sh.getRange(3, 1, H - 2, W).setVerticalAlignment("top").setWrap(true)
+    .setBorder(true, true, true, true, true, true, "#d7dbe3", SpreadsheetApp.BorderStyle.SOLID);
+  sh.getRange(1, 1, 1, W).setWrap(false);
+  heights.forEach((h, w) => sh.setRowHeight(4 + w * 2, h));
+}
+
+function onF4Daily() { rebuildF4_(); }
 
 function myF4_(name) {
   return f4Rows_().filter((r) => r.name === name).sort((a, b) => b.date - a.date).slice(0, 30)
