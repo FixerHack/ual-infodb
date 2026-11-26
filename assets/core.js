@@ -99,6 +99,7 @@ const UAL = (() => {
           if (r.role && r.role !== role) { role = r.role; set("ual-role", role); }
         }
         if (r.who === "none") clearIdentity();
+        try { window.dispatchEvent(new Event("ual:who")); } catch (e) {}   // футер оновить «Ти: …»
         if (gate === "1" && !token) { toVhid(); return; }
         if (r.block === "site") showBlocked();
         else if (document.getElementById("ual-blocked")) location.reload();

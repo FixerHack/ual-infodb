@@ -157,13 +157,19 @@ window.UAL_SECTIONS = SECTIONS;
     </div>`;
   document.body.appendChild(footer);
   // Хто ти — у футері, з можливістю змінити
-  if (typeof UAL !== "undefined" && UAL.me) {
-    const me = document.createElement("a");
-    me.className = "footer-me";
-    me.href = "vhid";
-    me.textContent = "Ти: " + UAL.me;
-    footer.querySelector(".wrap").appendChild(me);
-  }
+  // Ментор / адмін — з позначкою ролі (видно, що сайт уже підтягнув роль з таблиці)
+  const roleTag = (r) => (r === "Адмін" ? " (адмін)" : r === "Ментор" ? " (ментор)" : "");
+  const me = document.createElement("a");
+  me.className = "footer-me";
+  me.href = "vhid";
+  const showMe = () => {
+    const on = typeof UAL !== "undefined" && UAL.me;
+    me.textContent = on ? "Ти: " + UAL.me + roleTag(UAL.role) : "";
+    if (on && !me.isConnected) footer.querySelector(".wrap").appendChild(me);
+    if (!on && me.isConnected) me.remove();
+  };
+  showMe();
+  window.addEventListener("ual:who", showMe);
 
   // Кнопка «Вгору» — з'являється, коли прокрутив сторінку вниз
   const up = document.createElement("button");

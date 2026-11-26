@@ -60,7 +60,7 @@
     </section>
   </div>
 </main>
-<script src="assets/core.js?v=20261145"></script>
+<script src="assets/core.js?v=20261155"></script>
 <script src="assets/library.js?v=20261145"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -171,7 +171,7 @@ function openForm(r) {
   $("gate").hidden = true; $("form").hidden = false;
   $("mine").closest(".f4-mine").hidden = false;
   $("who").innerHTML = (r.test ? `<div class="f4-test">🧪 Тестовий режим: студенти F4 поки не бачать, твої заявки позначаються «ТЕСТ».</div>` : "")
-    + `Подаєш як <b>${esc(r.name || UAL.me || "студент")}</b> · <a href="vhid?next=f4">не ти?</a>`;
+    + `Подаєш як <b>${esc(r.name || UAL.me || "студент")}</b>${r.role === "Адмін" ? " (адмін)" : r.role === "Ментор" ? " (ментор)" : ""} · <a href="vhid?next=f4">не ти?</a>`;
   setReasons(r.reasons);
   renderMine(r.mine);
 }
@@ -207,6 +207,6 @@ $("form").addEventListener("submit", async (e) => {
 
 load();
 </script>
-<script src="assets/site.js?v=20261148"></script>
+<script src="assets/site.js?v=20261155"></script>
 </body>
 </html>
