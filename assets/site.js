@@ -10,10 +10,9 @@ const SECTIONS = [
   },
   {
     title: "Таймлайн", icon: "📅", accent: "#f7aa3a",
-    desc: "Модулі року, вишколи, канікули, розклад англійської та спорядження",
+    desc: "Модулі року, вишколи, канікули та спорядження",
     pages: [
       { href: "timeline", title: "Таймлайн року" },
-      { href: "angliyska", title: "Розклад англійської" },
       { href: "sporyadzhennia", title: "Спорядження на вишкіл" },
     ],
   },
