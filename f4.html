@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=20261153">
+  <link rel="stylesheet" href="assets/style.css?v=20261154">
 </head>
 <body>
 <main>
@@ -121,15 +121,32 @@ function reportBlock(r) {
   const dl = r.deadline ? `до ${short(r.deadline)}, 23:59` : "";
   if (r.reportState === "soon") return `<div class="f4-report muted">📝 Звіт за день можна буде написати ${short(r.date)} (${dl}).</div>`;
   if (r.reportState === "missed") return `<div class="f4-report late">⚠️ Звіт не подано — дедлайн минув.</div>`;
-  const done = r.report ? `<div class="f4-report-text"><b>Твій звіт</b>${r.reportAt ? ` · ${esc(stamp(r.reportAt))}` : ""}<p>${esc(r.report)}</p></div>` : "";
-  if (r.reportState === "closed") return `<div class="f4-report">${done}</div>`;
-  return `<div class="f4-report">${done}
-    <form class="f4-report-form" data-id="${esc(r.id)}">
-      <label class="f4-label">${r.report ? "Оновити звіт" : "📝 Звіт за день"} <span class="f4-dl">${dl}</span></label>
-      <textarea class="field" rows="4" maxlength="3000" placeholder="Як минув день: що робив(ла), де був(ла), що встиг(ла)"></textarea>
-      <button class="btn small" type="submit">${r.report ? "Оновити звіт" : "Надіслати звіт"}</button>
-    </form></div>`;
+  const canEdit = r.reportState === "open";
+  if (r.report) return `<div class="f4-report" data-id="${esc(r.id)}">
+    <div class="f4-report-text">
+      <div class="f4-report-head"><span><b>Твій звіт</b>${r.reportAt ? ` · ${esc(stamp(r.reportAt))}` : ""}</span>
+        ${canEdit ? `<button class="f4-edit" type="button" data-edit title="Можна змінити ${dl}">✏️ Редагувати</button>` : ""}</div>
+      <p>${esc(r.report)}</p>
+    </div>
+    ${canEdit ? reportForm(r, dl, true) : ""}</div>`;
+  return `<div class="f4-report" data-id="${esc(r.id)}">${reportForm(r, dl, false)}</div>`;
 }
+function reportForm(r, dl, edit) {
+  return `<form class="f4-report-form" data-id="${esc(r.id)}"${edit ? " hidden" : ""}>
+      <label class="f4-label">📝 Звіт за день <span class="f4-dl">${dl}</span></label>
+      <textarea class="field" rows="4" maxlength="3000" placeholder="Як минув день: що робив(ла), де був(ла), що встиг(ла)">${edit ? esc(r.report) : ""}</textarea>
+      <div class="f4-report-actions"><button class="btn small" type="submit">${edit ? "Зберегти" : "Надіслати звіт"}</button>
+        ${edit ? `<button class="btn ghost small" type="button" data-cancel>Скасувати</button>` : ""}</div>
+    </form>`;
+}
+// «Редагувати» — показуємо форму з текстом звіту замість самого звіту; «Скасувати» — назад
+$("mine").addEventListener("click", (e) => {
+  const box = e.target.closest(".f4-report");
+  if (!box) return;
+  const view = box.querySelector(".f4-report-text"), form = box.querySelector(".f4-report-form");
+  if (e.target.closest("[data-edit]")) { view.hidden = true; form.hidden = false; const ta = form.querySelector("textarea"); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+  if (e.target.closest("[data-cancel]")) { form.hidden = true; view.hidden = false; form.reset(); }
+});
 $("mine").addEventListener("submit", async (e) => {
   const f = e.target.closest(".f4-report-form");
   if (!f) return;
@@ -141,7 +158,7 @@ $("mine").addEventListener("submit", async (e) => {
   if (r.auth === false) { UAL.clearIdentity(); return needLogin(r.test !== false); }
   if (r.mine) renderMine(r.mine);
   else { btn.disabled = false; btn.textContent = "Надіслати звіт"; }
-  toast(r.ok ? "Звіт надіслано. Дякуємо!" : r.error, r.ok ? "ok" : "err");
+  toast(r.ok ? "Звіт збережено. Дякуємо!" : r.error, r.ok ? "ok" : "err");
 });
 async function post(body) {
   try {

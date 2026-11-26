@@ -997,8 +997,12 @@ html.ual-blocked body { overflow: hidden; }
 .f4-report-text { background: var(--violet-bg); border-radius: 12px; padding: 10px 12px; font-size: .92rem; }
 .f4-report-text p { margin: 6px 0 0; white-space: pre-wrap; }
 .f4-report-form { display: grid; gap: 8px; }
+.f4-report-form[hidden], .f4-report-text[hidden] { display: none; }
+.f4-report-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.f4-edit { font: inherit; font-size: .85rem; font-weight: 600; color: var(--violet); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.f4-edit:hover { background: var(--card); }
+.f4-report-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .f4-report-form .field { width: 100%; border-radius: 12px; padding: 10px 12px; font: inherit; resize: vertical; }
-.f4-report-form .btn { justify-self: start; }
 .f4-dl { font-weight: 500; color: var(--muted); font-size: .85rem; margin-left: 6px; }
 .f4-test { background: var(--violet-bg); color: var(--ink); border-radius: 12px; padding: 10px 14px; font-weight: 600; margin-bottom: 10px; }
 .f4-form .field { width: 100%; border-radius: 14px; padding: 12px 14px; font: inherit; }
