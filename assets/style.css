@@ -986,6 +986,11 @@ html.ual-blocked body { overflow: hidden; }
 .f4-form { display: grid; gap: 10px; }
 .f4-form[hidden], .f4-mine[hidden] { display: none; }
 .f4-grid:has(.f4-mine[hidden]) { grid-template-columns: minmax(0, 640px); }
+.f4-side { display: grid; gap: 20px; align-content: start; }
+.f4-rules h3 { margin: 0 0 10px; font-size: 1.05rem; }
+.f4-rules ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; color: var(--muted); font-size: .93rem; line-height: 1.5; }
+.f4-rules li::marker { color: #e07a5f; }
+.f4-rules b { color: var(--ink); }
 .f4-report { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); display: grid; gap: 10px; }
 .f4-report.muted { color: var(--muted); font-size: .92rem; }
 .f4-report.late { color: var(--bad); font-weight: 600; font-size: .92rem; }
