@@ -1028,3 +1028,19 @@ html.ual-blocked body { overflow: hidden; }
 .f4-st.no { background: var(--bad-bg); color: var(--bad); }
 .f4-st.wait { background: color-mix(in srgb, #e0a91b 18%, var(--card)); color: #a87b06; }
 .f4-comment { margin-top: 8px; font-size: .88rem; }
+
+/* Оголошення під шапкою */
+.site-notice { background: color-mix(in srgb, #5b8def 14%, var(--bg, #fff)); border-bottom: 1px solid color-mix(in srgb, #5b8def 30%, transparent); font-size: 14px; }
+.site-notice .wrap { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding-top: 10px; padding-bottom: 10px; }
+.site-notice a { font-weight: 600; white-space: nowrap; }
+
+/* Учасники */
+.members { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.member { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.member .ava { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px; color: #fff; background: var(--acc, #5b8def); }
+.member b { display: block; font-weight: 600; }
+.member small { color: var(--muted, #6b7280); }
+.member.me { outline: 2px solid #5b8def; }
+.member.gone { opacity: .72; }
+.member.gone .ava { background: #9ca3af; }
+.members-count { color: var(--muted, #6b7280); font-weight: 500; font-size: .7em; margin-left: 6px; }

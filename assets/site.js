@@ -60,6 +60,11 @@ const SECTIONS = [
     pages: [{ href: "partnerstva", title: "Партнерства" }],
   },
   {
+    title: "Учасники", icon: "👥", accent: "#5b8def",
+    desc: "Студенти й ментори осередку — лише для своїх",
+    pages: [{ href: "uchasnyky", title: "Учасники УАЛ" }],
+  },
+  {
     title: "Дні народження", icon: "🎂", accent: "#c9d52a",
     desc: "Календар днів народження студентів і найближчі свята",
     pages: [{ href: "dni-narodzhennia", title: "Дні народження" }],
@@ -109,6 +114,18 @@ window.UAL_SECTIONS = SECTIONS;
       </div>
     </div>`;
   document.body.prepend(header);
+
+  // Оголошення на всіх сторінках (до вказаної дати включно)
+  const NOTICES = [
+    { until: "2026-12-04", html: "📣 <b>Ткаченко Марія</b> більше не навчається в УАЛ Львів. Дякуємо їй за спільний шлях!", link: "uchasnyky" },
+  ];
+  const todayKey = new Date().toLocaleDateString("sv");
+  NOTICES.filter((n) => todayKey <= n.until).forEach((n) => {
+    const bar = document.createElement("div");
+    bar.className = "site-notice";
+    bar.innerHTML = `<div class="wrap"><span>${n.html}</span>${n.link && current !== n.link ? `<a href="${n.link}">Учасники →</a>` : ""}</div>`;
+    header.after(bar);
+  });
 
   const btn = header.querySelector(".menu-btn");
   const panel = header.querySelector(".menu-panel");

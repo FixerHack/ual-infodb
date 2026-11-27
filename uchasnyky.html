@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="noindex">
+  <title>УАЛ | Учасники</title>
+  <link rel="preconnect" href="https://script.google.com">
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css?v=20261160">
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Лише для студентів і менторів</span>
+      <h1>Учасники <span>УАЛ</span></h1>
+      <p class="lead">Хто зараз навчається в осередку УАЛ Львів, хто нас супроводжує, і хто вже пішов з Академії.</p>
+    </section>
+    <div id="out"><div class="card"><div class="skeleton"></div></div></div>
+  </div>
+</main>
+<script src="assets/core.js?v=20261155"></script>
+<script>
+const out = document.getElementById("out");
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const COLORS = ["#5b8def", "#e07a5f", "#4fb8a8", "#8b86d9", "#d8a24a", "#f08da0", "#6c6fe0", "#3fa36b"];
+const color = (n) => COLORS[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORS.length];
+const initials = (n) => n.split(" ").slice(0, 2).map((w) => w[0]).join("");
+const sortUk = (a) => a.slice().sort((x, y) => x.localeCompare(y, "uk"));
+
+function cards(list, me, note, gone) {
+  return `<div class="members">${sortUk(list).map((n) => `
+    <div class="card member${n === me ? " me" : ""}${gone ? " gone" : ""}">
+      <span class="ava" style="--acc:${color(n)}">${esc(initials(n))}</span>
+      <span><b>${esc(n)}</b>${n === me ? "<small>це ти</small>" : note ? `<small>${note}</small>` : ""}</span>
+    </div>`).join("")}</div>`;
+}
+const block = (num, title, count, html) =>
+  `<section><div class="section-title"><span class="num">${num}</span><h2>${title}<span class="members-count">${count}</span></h2></div>${html}</section>`;
+
+function gate(msg) {
+  out.innerHTML = `<div class="card"><h3>${msg}</h3><p>Список учасників бачать лише студенти й ментори осередку.</p>
+    <a class="btn" href="vhid?next=uchasnyky">Підтвердити, хто я →</a></div>`;
+}
+
+async function load() {
+  if (!UAL.token) return gate("Спершу підтверди, хто ти");
+  let r;
+  try { r = await (await fetch(UAL_API_URL + "?members=1&token=" + encodeURIComponent(UAL.token) + "&t=" + Date.now())).json(); }
+  catch (e) { out.innerHTML = `<div class="warn-box">⚠️ Не вдалося зв'язатися з сервером. Онови сторінку.</div>`; return; }
+  if (r.auth === false) { UAL.clearIdentity(); return gate("Спершу підтверди, хто ти"); }
+  if (!r.ok || !r.mentors || !r.left) { out.innerHTML = `<div class="card"><h3>🛠 Сторінка оновлюється</h3><p>Зайди трохи пізніше.</p></div>`; return; }
+  let n = 0;
+  const num = () => String(++n).padStart(2, "0");
+  out.innerHTML =
+    (r.mentors.length ? block(num(), "Ментори", r.mentors.length, cards(r.mentors, r.name, "ментор")) : "") +
+    block(num(), "Студенти", r.students.length, cards(r.students, r.name, "")) +
+    (r.left.length ? block(num(), "Пішли з УАЛ", r.left.length, cards(r.left, r.name, "", true)) : "");
+}
+load();
+</script>
+<script src="assets/site.js?v=20261160"></script>
+</body>
+</html>

@@ -58,6 +58,7 @@ const LAPTOP = "Ноутбук";
 const BLOCK_SITE = "Увесь сайт";
 const BLOCK_BOOKS = "Лише книжки";
 const ROLE_STUDENT = "Студент", ROLE_MENTOR = "Ментор", ROLE_ADMIN = "Адмін";
+const ROLE_LEFT = "Пішов(ла) з УАЛ"; // доступ закрито; у «Учасниках» — у розділі «Пішли з УАЛ»
 const F4_WAIT = "На розгляді", F4_YES = "Дозволено", F4_NO = "Заборонено";
 const ACC_WAIT = "Очікує", ACC_YES = "Підтвердити", ACC_NO = "Відхилити", ACC_DONE = "Підтверджено", ACC_REJ = "Відхилено";
 const SITE_URL = "https://fixerhack.github.io/ual-infodb/";
@@ -297,7 +298,7 @@ function lastPersonRow_(pp) {
 function formatPeople_(pp) {
   const n = lastPersonRow_(pp) - 1;
   if (n < 1) return;
-  pp.getRange(2, P_ROLE, n, 1).setDataValidation(listRule_([ROLE_STUDENT, ROLE_MENTOR, ROLE_ADMIN]));
+  pp.getRange(2, P_ROLE, n, 1).setDataValidation(listRule_([ROLE_STUDENT, ROLE_MENTOR, ROLE_ADMIN, ROLE_LEFT]));
   [P_ACCESS, P_BLOCKED, P_RELINK].forEach((c) => pp.getRange(2, c, n, 1).insertCheckboxes());
   pp.getRange(2, P_BOOKS, n, 1).setWrap(true).setVerticalAlignment("top");
 }
@@ -399,7 +400,8 @@ function installTriggers_() {
 function journalNames_() {
   const log = lib_().getSheetByName(SHEET_LOG);
   if (!log) return;
-  log.getRange("D2:D").setDataValidation(listRule_(people_().list.concat(["—"])));
+  const ppl = people_();
+  log.getRange("D2:D").setDataValidation(listRule_(ppl.list.concat(ppl.left, ["—"])));
   if (!log.getRange("E2").getDataValidation()) log.getRange("E2:E").setDataValidation(listRule_([TAKEN, RETURNED]));
 }
 
@@ -425,7 +427,7 @@ const f4Allowed_ = (role, test) => !test || role === ROLE_ADMIN || role === ROLE
 const defaultLimit_ = () => { const v = Number(settings_()[SET_LIMIT]); return v > 0 ? Math.floor(v) : 3; };
 
 function people_() {
-  const byName = {}, byCode = {}, byOld = {}, list = [], choose = [];
+  const byName = {}, byCode = {}, byOld = {}, list = [], choose = [], left = [];
   const def = defaultLimit_();
   const raw = cached_("people", () => {
     const pp = siteSheet_(SHEET_PEOPLE), last = pp ? lastPersonRow_(pp) : 1;
@@ -438,19 +440,20 @@ function people_() {
       const lim = Number(r[P_LIMIT - 1]);
       const role = String(r[P_ROLE - 1]).trim();
       const rec = {
-        row: i + 2, name, role: role === ROLE_MENTOR || role === ROLE_ADMIN ? role : ROLE_STUDENT,
+        row: i + 2, name, role: role === ROLE_MENTOR || role === ROLE_ADMIN || role === ROLE_LEFT ? role : ROLE_STUDENT,
         access: r[P_ACCESS - 1] !== false, blocked: r[P_BLOCKED - 1] === true, limit: lim > 0 ? Math.floor(lim) : def,
         code: String(r[P_CODE - 1]).trim(), old: String(r[P_OLD - 1]).trim(),
       };
-      rec.ok = rec.access && !rec.blocked;
+      rec.ok = rec.access && !rec.blocked && rec.role !== ROLE_LEFT;
       byName[name] = rec;
-      list.push(name);
-      if (rec.role !== ROLE_MENTOR) choose.push(name);   // ментори входять лише за своїм посиланням
+      if (rec.role === ROLE_LEFT) left.push(name);       // пішли з УАЛ — ні входу, ні бібліотеки
+      else list.push(name);
+      if (rec.role !== ROLE_MENTOR && rec.role !== ROLE_LEFT) choose.push(name);   // ментори входять лише за своїм посиланням
       if (rec.code) byCode[rec.code] = rec;
       if (rec.old) byOld[rec.old] = rec;
     });
   }
-  return { get sheet() { return siteSheet_(SHEET_PEOPLE); }, byName, byCode, byOld, list, choose };
+  return { get sheet() { return siteSheet_(SHEET_PEOPLE); }, byName, byCode, byOld, list, choose, left };
 }
 
 function devices_() {
@@ -591,6 +594,11 @@ function processAccess_() {
     }
     if (decision !== ACC_YES) return;
     let ppl = people_(), rec = ppl.byName[name];
+    if (rec && rec.role === ROLE_LEFT) {
+      sheet.getRange(i + 2, 8).setValue(ACC_REJ);
+      logEvent_("Доступ відхилено", "", name, r[4], r[5], "людина пішла з УАЛ");
+      return;
+    }
     if (rec && rec.role === ROLE_MENTOR) {           // ментори — лише за особистим посиланням
       sheet.getRange(i + 2, 8).setValue(ACC_REJ);
       logEvent_("Доступ відхилено", "", name, r[4], r[5], "ментор входить лише за особистим посиланням");
@@ -1008,6 +1016,13 @@ function doGet(e) {
     if (status === ACC_DONE) return json_({ ok: true, status: "ok", name: String(row[2]).trim(), token: String(row[8]).trim() });
     return json_({ ok: true, status: status === ACC_REJ ? "rejected" : "pending" });
   }
+  if (p.members) {                                   // «Учасники УАЛ» — лише для своїх
+    const who = whoBySession_(p.token);
+    if (!who || !who.ok) return json_({ ok: false, auth: false, error: "Спершу підтверди, хто ти" });
+    const ppl = people_(), mentors = [], students = [];
+    ppl.list.forEach((n) => (ppl.byName[n].role === ROLE_MENTOR ? mentors : students).push(n));
+    return json_({ ok: true, name: who.name, role: who.role, mentors, students, left: ppl.left });
+  }
   if (p.f4) {
     const test = f4Test_(), who = whoBySession_(p.token);
     if (!who || !who.ok) return json_({ ok: false, auth: false, test, error: "Спершу підтверди, хто ти" });
@@ -1060,6 +1075,7 @@ function doPost(e) {
       if (name.length < 3) return json_({ ok: false, error: "Вкажи прізвище та ім'я" });
       if (blockOf_(dev)) return json_({ ok: false, error: "З цього пристрою доступ заборонено." });
       const known = people_().byName[name], isNew = !known;
+      if (known && known.role === ROLE_LEFT) return json_({ ok: false, error: "Доступ для «" + name + "» закрито. Звернись до адміністратора." });
       if (known && known.role === ROLE_MENTOR) return json_({ ok: false, error: "Ментори входять лише за своїм особистим посиланням. Попроси його в адміністратора." });
       const { sheet, rows } = accessRows_();
       const open = rows.find((r) => String(r[4]) === dev && String(r[2]).trim() === name && !String(r[7]).trim());
