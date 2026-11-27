@@ -35,7 +35,7 @@ const CAL_WEEKS_BACK = 0, CAL_WEEKS = 5; // поточний тиждень + 4 
 // Колонки «F4 → Запити»
 const F4_HEADERS = ["ID", "Подано", "Студент", "Дата", "Причина", "Рішення", "Коментар", "Інших схвалених F4", "Звіт за день", "Звіт подано", "Бан 3 дні"];
 const F_ID = 1, F_AT = 2, F_NAME = 3, F_DATE = 4, F_REASON = 5, F_STATUS = 6, F_COMMENT = 7, F_COUNT = 8, F_REPORT = 9, F_REPORT_AT = 10, F_BAN = 11;
-// Бан F4: 3 відмови поспіль (схвалена заявка обнуляє лічильник) — 3 дні без права подавати
+// Бан F4: 3 відхилені заявки, подані за один день — 3 дні без права подавати
 const F4_BAN_AFTER = 3, F4_BAN_DAYS = 3, SHEET_F4_BANS = "Бани F4";
 const F4_OTHER = "Інше";
 // Початковий список причин (далі його веде адміністрація в аркуші «Причини»)
@@ -696,21 +696,22 @@ function f4Unban_(name, why) {
   dropCache_(["people"]);
   logEvent_("F4: бан знято", "", name, "", "", why);
 }
-// 3 відмови поспіль (за часом подання; «На розгляді» пропускаємо, «Дозволено» обнуляє)
+// 3 відхилені заявки, подані за один день (спам) → бан. Відмови в різні дні не складаються.
 function autoBanF4_(rows) {
-  const test = f4Test_(), from = JSON.parse(PROPS.getProperty("f4BanFrom") || "{}"), ppl = people_(), by = {};
+  const test = f4Test_(), from = JSON.parse(PROPS.getProperty("f4BanFrom") || "{}"), ppl = people_(), cnt = {};
   rows.forEach((r) => {
-    if (!test && isTestF4_(r)) return;             // у робочому режимі тестові заявки не рахуємо
-    const at = r.at instanceof Date ? r.at.getTime() : r.date.getTime();
-    if (from[r.name] && at <= from[r.name]) return;
-    (by[r.name] = by[r.name] || []).push({ at, status: r.status });
+    if (r.status !== F4_NO || (!test && isTestF4_(r))) return;   // у робочому режимі тестові заявки не рахуємо
+    const at = r.at instanceof Date ? r.at : r.date;
+    if (from[r.name] && at.getTime() <= from[r.name]) return;    // після бану рахуємо заново
+    const k = r.name + "|" + dayKey_(at);
+    cnt[k] = (cnt[k] || 0) + 1;
   });
-  Object.keys(by).forEach((name) => {
-    const rec = ppl.byName[name];
-    if (!rec || rec.f4ban) return;
-    let streak = 0;
-    by[name].sort((a, b) => a.at - b.at).forEach((x) => { if (x.status === F4_YES) streak = 0; else if (x.status === F4_NO) streak++; });
-    if (streak >= F4_BAN_AFTER) f4Ban_(name, F4_BAN_AFTER + " відмови поспіль");
+  const done = {};
+  Object.keys(cnt).forEach((k) => {
+    const name = k.split("|")[0], rec = ppl.byName[name];
+    if (cnt[k] < F4_BAN_AFTER || done[name] || !rec || rec.f4ban) return;
+    done[name] = true;
+    f4Ban_(name, F4_BAN_AFTER + " відхилені заявки за один день");
   });
 }
 // Прострочені бани: знімаємо галочку в «Людях»
@@ -736,7 +737,7 @@ function writeBans_() {
     bold_(sh, ["Ім'я", "Бан до", "Зняти бан"]);
     sh.setFrozenRows(1);
     sh.setColumnWidth(1, 220); sh.setColumnWidth(2, 150);
-    sh.getRange(1, 5).setValue("Бан ставиться сам після " + F4_BAN_AFTER + " відмов поспіль (на " + F4_BAN_DAYS + " дні), або вручну: галочка «Бан 3 дні» в «Запитах» чи «Бан F4» у «Людях».");
+    sh.getRange(1, 5).setValue("Бан ставиться сам, якщо за один день відхилили " + F4_BAN_AFTER + " заявки людини (на " + F4_BAN_DAYS + " дні), або вручну: галочка «Бан 3 дні» в «Запитах» чи «Бан F4» у «Людях».");
   }
   const ppl = people_(), list = ppl.list.concat(ppl.left).map((n) => ppl.byName[n]).filter((r) => r.f4ban)
     .map((r) => [r.name, r.f4banUntil ? stamp_(r.f4banUntil, "dd.MM.yyyy HH:mm") : "до зняття", false]);
