@@ -33,8 +33,10 @@ const SHEET_F4_REASONS = "Причини";
 const SHEET_F4_CAL = "Календар";
 const CAL_WEEKS_BACK = 0, CAL_WEEKS = 5; // поточний тиждень + 4 наступні (минулі не показуємо)
 // Колонки «F4 → Запити»
-const F4_HEADERS = ["ID", "Подано", "Студент", "Дата", "Причина", "Рішення", "Коментар", "Інших схвалених F4", "Звіт за день", "Звіт подано"];
-const F_ID = 1, F_AT = 2, F_NAME = 3, F_DATE = 4, F_REASON = 5, F_STATUS = 6, F_COMMENT = 7, F_COUNT = 8, F_REPORT = 9, F_REPORT_AT = 10;
+const F4_HEADERS = ["ID", "Подано", "Студент", "Дата", "Причина", "Рішення", "Коментар", "Інших схвалених F4", "Звіт за день", "Звіт подано", "Бан 3 дні"];
+const F_ID = 1, F_AT = 2, F_NAME = 3, F_DATE = 4, F_REASON = 5, F_STATUS = 6, F_COMMENT = 7, F_COUNT = 8, F_REPORT = 9, F_REPORT_AT = 10, F_BAN = 11;
+// Бан F4: 3 відмови поспіль (схвалена заявка обнуляє лічильник) — 3 дні без права подавати
+const F4_BAN_AFTER = 3, F4_BAN_DAYS = 3, SHEET_F4_BANS = "Бани F4";
 const F4_OTHER = "Інше";
 // Початковий список причин (далі його веде адміністрація в аркуші «Причини»)
 const F4_REASONS = [
@@ -67,10 +69,10 @@ const SEEN_EVERY_MS = 60 * 60 * 1000; // «Востаннє на сайті» о
 
 // Колонки аркуша «Люди»
 const P_NAME = 1, P_ROLE = 2, P_ACCESS = 3, P_BLOCKED = 4, P_LIMIT = 5, P_DEVICES = 6, P_COUNT = 7, P_BOOKS = 8,
-  P_LINK = 9, P_RELINK = 10, P_CODE = 11, P_OLD = 12, P_ACCOUNT = 13;
+  P_LINK = 9, P_RELINK = 10, P_CODE = 11, P_OLD = 12, P_ACCOUNT = 13, P_F4BAN = 14, P_F4BAN_UNTIL = 15;
 const ACC_ACTIVE = "Активний", ACC_INACTIVE = "Неактивний";
 const PEOPLE_HEADERS = ["Ім'я", "Роль", "Доступ", "Заблоковано", "Ліміт пристроїв", "Пристроїв", "Книжок на руках", "Які книжки",
-  "Особисте посилання", "Нове посилання", "Код посилання", "Старий код", "Акаунт"];
+  "Особисте посилання", "Нове посилання", "Код посилання", "Старий код", "Акаунт", "Бан F4", "Бан F4 до"];
 // Колонки аркуша «Пристрої»
 const D_NAME = 1, D_TYPE = 2, D_UA = 3, D_ADDED = 4, D_SEEN = 5, D_LOGOUT = 6, D_DEV = 7, D_SESSION = 8;
 const DEVICE_HEADERS = ["Людина", "Тип", "Браузер", "Додано", "Востаннє на сайті", "Вийти", "Код пристрою", "Сесія"];
@@ -299,7 +301,8 @@ function formatPeople_(pp) {
   const n = lastPersonRow_(pp) - 1;
   if (n < 1) return;
   pp.getRange(2, P_ROLE, n, 1).setDataValidation(listRule_([ROLE_STUDENT, ROLE_MENTOR, ROLE_ADMIN, ROLE_LEFT]));
-  [P_ACCESS, P_BLOCKED, P_RELINK].forEach((c) => pp.getRange(2, c, n, 1).insertCheckboxes());
+  [P_ACCESS, P_BLOCKED, P_RELINK, P_F4BAN].forEach((c) => pp.getRange(2, c, n, 1).insertCheckboxes());
+  pp.getRange(2, P_F4BAN_UNTIL, n, 1).setNumberFormat("dd.MM.yyyy HH:mm");
   pp.getRange(2, P_BOOKS, n, 1).setWrap(true).setVerticalAlignment("top");
 }
 
@@ -356,6 +359,7 @@ function setupF4_() {
     q.getRange(2, F_REPORT, 1000, 1).setWrap(true).setVerticalAlignment("top");
     q.setColumnWidth(F_COUNT, 150);
     q.setColumnWidth(F_REPORT, 420);
+    q.setColumnWidth(F_BAN, 90);
     // фільтри на всі колонки (сортування, статус, ім'я, дата…); за замовчуванням — без минулих днів
     if (!q.getFilter()) q.getRange(1, 1, q.getMaxRows(), F_REPORT_AT).createFilter();
     f4DefaultFilter_(q);
@@ -372,6 +376,7 @@ function setupF4_() {
   }
   if (rs.getLastRow() < 2 || !f4Reasons_().length) rs.getRange(2, 1, F4_REASONS.length, 1).setValues(F4_REASONS.map((x) => [x]));
   rebuildF4_();
+  writeBans_();
 }
 
 function statusColors_(sh, a1) {
@@ -431,7 +436,7 @@ function people_() {
   const def = defaultLimit_();
   const raw = cached_("people", () => {
     const pp = siteSheet_(SHEET_PEOPLE), last = pp ? lastPersonRow_(pp) : 1;
-    return last >= 2 ? pp.getRange(2, 1, last - 1, P_OLD).getValues() : [];
+    return last >= 2 ? pp.getRange(2, 1, last - 1, P_F4BAN_UNTIL).getValues().map((r) => r.map((v) => (v instanceof Date ? { t: v.getTime() } : v))) : [];
   });
   {
     raw.forEach((r, i) => {
@@ -444,6 +449,10 @@ function people_() {
         access: r[P_ACCESS - 1] !== false, blocked: r[P_BLOCKED - 1] === true, limit: lim > 0 ? Math.floor(lim) : def,
         code: String(r[P_CODE - 1]).trim(), old: String(r[P_OLD - 1]).trim(),
       };
+      // бан F4: галочка + «до» (порожньо — до зняття вручну); минулий — не діє
+      const until = r[P_F4BAN_UNTIL - 1] && r[P_F4BAN_UNTIL - 1].t ? new Date(r[P_F4BAN_UNTIL - 1].t) : null;
+      rec.f4ban = r[P_F4BAN - 1] === true && (!until || until.getTime() > Date.now());
+      rec.f4banUntil = rec.f4ban ? until : null;
       rec.ok = rec.access && !rec.blocked && rec.role !== ROLE_LEFT;
       byName[name] = rec;
       if (rec.role === ROLE_LEFT) left.push(name);       // пішли з УАЛ — ні входу, ні бібліотеки
@@ -660,6 +669,81 @@ function f4FreeRow_(q) {
   return last + 1;
 }
 
+// ---------------------------------------------------------------------------
+// Бан F4. Зберігається в «Людях» (☐ Бан F4 + «Бан F4 до»); у приватній F4 — дзеркало «Бани F4».
+// ---------------------------------------------------------------------------
+function f4BanInfo_(name) {
+  const rec = people_().byName[name];
+  if (!rec || !rec.f4ban) return null;
+  return rec.f4banUntil ? { until: rec.f4banUntil.toISOString(), untilText: stamp_(rec.f4banUntil, "dd.MM о HH:mm") } : { until: "", untilText: "" };
+}
+function f4Ban_(name, why) {
+  const rec = people_().byName[name], pp = siteSheet_(SHEET_PEOPLE);
+  if (!rec || !pp) return;
+  const until = new Date(Date.now() + F4_BAN_DAYS * 864e5);
+  pp.getRange(rec.row, P_F4BAN, 1, 2).setValues([[true, until]]);
+  dropCache_(["people"]);
+  const from = JSON.parse(PROPS.getProperty("f4BanFrom") || "{}");
+  from[name] = Date.now();                       // від цього моменту відмови рахуються заново
+  PROPS.setProperty("f4BanFrom", JSON.stringify(from));
+  logEvent_("F4: бан", "", name, "", "", why + " · до " + stamp_(until, "dd.MM HH:mm"));
+  writeBans_();
+}
+function f4Unban_(name, why) {
+  const rec = people_().byName[name], pp = siteSheet_(SHEET_PEOPLE);
+  if (!rec || !pp) return;
+  pp.getRange(rec.row, P_F4BAN, 1, 2).setValues([[false, ""]]);
+  dropCache_(["people"]);
+  logEvent_("F4: бан знято", "", name, "", "", why);
+}
+// 3 відмови поспіль (за часом подання; «На розгляді» пропускаємо, «Дозволено» обнуляє)
+function autoBanF4_(rows) {
+  const test = f4Test_(), from = JSON.parse(PROPS.getProperty("f4BanFrom") || "{}"), ppl = people_(), by = {};
+  rows.forEach((r) => {
+    if (!test && isTestF4_(r)) return;             // у робочому режимі тестові заявки не рахуємо
+    const at = r.at instanceof Date ? r.at.getTime() : r.date.getTime();
+    if (from[r.name] && at <= from[r.name]) return;
+    (by[r.name] = by[r.name] || []).push({ at, status: r.status });
+  });
+  Object.keys(by).forEach((name) => {
+    const rec = ppl.byName[name];
+    if (!rec || rec.f4ban) return;
+    let streak = 0;
+    by[name].sort((a, b) => a.at - b.at).forEach((x) => { if (x.status === F4_YES) streak = 0; else if (x.status === F4_NO) streak++; });
+    if (streak >= F4_BAN_AFTER) f4Ban_(name, F4_BAN_AFTER + " відмови поспіль");
+  });
+}
+// Прострочені бани: знімаємо галочку в «Людях»
+function expireBans_() {
+  const pp = siteSheet_(SHEET_PEOPLE), last = pp ? lastPersonRow_(pp) : 1;
+  if (last < 2) return;
+  const v = pp.getRange(2, P_F4BAN, last - 1, 2).getValues();
+  let changed = false;
+  v.forEach((r, i) => {
+    if (r[0] === true && r[1] instanceof Date && r[1].getTime() <= Date.now()) {
+      pp.getRange(i + 2, P_F4BAN, 1, 2).setValues([[false, ""]]); changed = true;
+    }
+  });
+  if (changed) { dropCache_(["people"]); writeBans_(); }
+}
+// «Бани F4» у приватній таблиці: хто зараз не може подавати + галочка «Зняти бан»
+function writeBans_() {
+  const ss = f4_();
+  if (!ss) return;
+  let sh = ss.getSheetByName(SHEET_F4_BANS);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_F4_BANS);
+    bold_(sh, ["Ім'я", "Бан до", "Зняти бан"]);
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(1, 220); sh.setColumnWidth(2, 150);
+    sh.getRange(1, 5).setValue("Бан ставиться сам після " + F4_BAN_AFTER + " відмов поспіль (на " + F4_BAN_DAYS + " дні), або вручну: галочка «Бан 3 дні» в «Запитах» чи «Бан F4» у «Людях».");
+  }
+  const ppl = people_(), list = ppl.list.concat(ppl.left).map((n) => ppl.byName[n]).filter((r) => r.f4ban)
+    .map((r) => [r.name, r.f4banUntil ? stamp_(r.f4banUntil, "dd.MM.yyyy HH:mm") : "до зняття", false]);
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 3).clearContent().removeCheckboxes();
+  if (list.length) { sh.getRange(2, 1, list.length, 3).setValues(list); sh.getRange(2, 3, list.length, 1).insertCheckboxes(); }
+}
+
 // Звіт за день: з дня F4 до 23:59 наступного дня
 const nextDayKey_ = (d) => dayKey_(new Date(d.getTime() + 864e5));
 function reportState_(r) {
@@ -698,6 +782,11 @@ function rebuildF4_() {
   if (pub) {
     write(pub.getSheetByName(SHEET_F4_PUB), rows.map((r) => [r.date, r.name, r.status]), 3);
   }
+  if (q) {                                          // кнопка «Бан 3 дні» — галочки лише в рядках із заявками
+    const lastRow = rows.reduce((m, r) => Math.max(m, r.row), 1);
+    if (lastRow >= 2) q.getRange(2, F_BAN, lastRow - 1, 1).insertCheckboxes();
+  }
+  autoBanF4_(rows);
   if (pv) writeCal_(pv, rows, others);
   if (pub) writeCal_(pub, rows.filter((r) => r.status !== F4_NO), null);
 }
@@ -822,6 +911,7 @@ function refreshFilter_(q) {
 }
 
 function onF4Daily() {
+  expireBans_();
   const q = f4_() && f4_().getSheetByName(SHEET_F4);
   if (q) f4DefaultFilter_(q);
   rebuildF4_();
@@ -957,7 +1047,24 @@ function onSiteEdit(e) {
     }
   }
   // «Люди»: нова людина, роль, доступ, «Нове посилання» — коди, посилання, галочки
-  if (name === SHEET_PEOPLE) { ensurePeople_(); journalNames_(); }
+  if (name === SHEET_PEOPLE) {
+    if (e.range.getColumn() <= P_F4BAN && e.range.getLastColumn() >= P_F4BAN) {
+      for (let r = Math.max(e.range.getRow(), 2); r <= e.range.getLastRow(); r++) {
+        const v = sh.getRange(r, 1, 1, P_F4BAN_UNTIL).getValues()[0], who = String(v[P_NAME - 1]).trim();
+        if (!who) continue;
+        if (v[P_F4BAN - 1] === true && !(v[P_F4BAN_UNTIL - 1] instanceof Date)) {
+          sh.getRange(r, P_F4BAN_UNTIL).setValue(new Date(Date.now() + F4_BAN_DAYS * 864e5));
+          logEvent_("F4: бан", "", who, "", "", "вручну в «Людях» на " + F4_BAN_DAYS + " дні");
+        } else if (v[P_F4BAN - 1] !== true && v[P_F4BAN_UNTIL - 1]) {
+          sh.getRange(r, P_F4BAN_UNTIL).setValue("");
+          logEvent_("F4: бан знято", "", who, "", "", "вручну в «Людях»");
+        }
+      }
+      dropCache_(["people"]);
+      writeBans_();
+    }
+    ensurePeople_(); journalNames_();
+  }
   // «Пристрої»: галочка «Вийти» — видаляємо пристрій (його код сесії перестає діяти)
   if (name === SHEET_DEVICES && e.range.getColumn() <= D_LOGOUT && e.range.getLastColumn() >= D_LOGOUT) {
     for (let r = e.range.getLastRow(); r >= Math.max(e.range.getRow(), 2); r--) {
@@ -977,7 +1084,24 @@ function onF4Edit(e) {
   if (!e || !e.range) return;
   const sh = e.range.getSheet();
   if (sh.getName() === SHEET_F4_CAL) { calDecide_(e.range); return rebuildF4_(); }
+  if (sh.getName() === SHEET_F4_BANS) {             // галочка «Зняти бан»
+    if (e.range.getLastColumn() >= 3) {
+      for (let r = Math.max(e.range.getRow(), 2); r <= e.range.getLastRow(); r++) {
+        if (sh.getRange(r, 3).getValue() === true) f4Unban_(String(sh.getRange(r, 1).getValue()).trim(), "у таблиці F4");
+      }
+    }
+    return writeBans_();
+  }
   if (sh.getName() !== SHEET_F4) return;
+  if (e.range.getColumn() <= F_BAN && e.range.getLastColumn() >= F_BAN) {   // кнопка «Бан 3 дні»
+    for (let r = Math.max(e.range.getRow(), 2); r <= e.range.getLastRow(); r++) {
+      const cell = sh.getRange(r, F_BAN);
+      if (cell.getValue() !== true) continue;
+      cell.setValue(false);
+      const who = String(sh.getRange(r, F_NAME).getValue()).trim();
+      if (who) f4Ban_(who, "вручну в таблиці F4");
+    }
+  }
   if (e.range.getColumn() <= 6 && e.range.getLastColumn() >= 6) {
     for (let r = Math.max(e.range.getRow(), 2); r <= e.range.getLastRow(); r++) {
       const v = String(sh.getRange(r, 6).getValue()).trim(), day = sh.getRange(r, 4).getValue();
@@ -1027,7 +1151,8 @@ function doGet(e) {
     const test = f4Test_(), who = whoBySession_(p.token);
     if (!who || !who.ok) return json_({ ok: false, auth: false, test, error: "Спершу підтверди, хто ти" });
     const allowed = f4Allowed_(who.role, test);
-    return json_({ ok: true, test, allowed, name: who.name, role: who.role, mine: allowed ? myF4_(who.name) : [], reasons: allowed ? f4Reasons_() : [] });
+    return json_({ ok: true, test, allowed, name: who.name, role: who.role, mine: allowed ? myF4_(who.name) : [], reasons: allowed ? f4Reasons_() : [],
+                   ban: f4BanInfo_(who.name) });
   }
   return json_({ ok: true, loans: loans_(), students: people_().list, catalog: catalog_().map((b) => b.id).sort().join(",") });
 }
@@ -1095,6 +1220,8 @@ function doPost(e) {
       const test = f4Test_();
       if (!f4Allowed_(who.role, test)) return json_({ ok: false, test, allowed: false,
         error: test ? "F4 ще в розробці — скоро запрацює." : "Заявки F4 подають студенти. Рішення — у таблиці F4." });
+      const ban = f4BanInfo_(who.name);
+      if (ban) return json_({ ok: false, ban, error: "Подавати F4 тобі тимчасово заборонено" + (ban.until ? " — до " + ban.untilText : "") + "." });
       const day = parseDay_(d.date);
       const today = new Date(); today.setHours(0, 0, 0, 0);
       if (!day) return json_({ ok: false, error: "Обери дату" });

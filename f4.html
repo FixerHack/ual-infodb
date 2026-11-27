@@ -174,6 +174,16 @@ function openForm(r) {
     + `Подаєш як <b>${esc(r.name || UAL.me || "студент")}</b>${r.role === "Адмін" ? " (адмін)" : r.role === "Ментор" ? " (ментор)" : ""} · <a href="vhid?next=f4">не ти?</a>`;
   setReasons(r.reasons);
   renderMine(r.mine);
+  showBan(r.ban);
+}
+
+// Бан F4: 3 відмови поспіль або рішення менторів — тимчасово не можна подавати
+function showBan(ban) {
+  $("ban")?.remove();
+  $("send").disabled = !!ban;
+  if (!ban) return;
+  $("who").insertAdjacentHTML("afterend", `<div class="warn-box" id="ban">⛔ Подавати F4 тобі тимчасово заборонено${ban.untilText ? ` — до <b>${esc(ban.untilText)}</b>` : ""}.
+    Так буває після 3 відмов поспіль або за рішенням менторів. Звіти за вже дозволені дні писати можна.</div>`);
 }
 
 async function load() {
@@ -196,10 +206,11 @@ $("form").addEventListener("submit", async (e) => {
   const btn = $("send");
   btn.disabled = true; btn.textContent = "Надсилаємо…";
   const r = await post({ action: "f4", date: $("date").value, reasonType: $("rtype").value, reason: isOther() ? $("reason").value.trim() : "" });
-  btn.disabled = false; btn.textContent = "Подати заявку";
+  btn.disabled = !!$("ban"); btn.textContent = "Подати заявку";
   if (r.auth === false) { UAL.clearIdentity(); return needLogin(r.test !== false); }
   if (r.allowed === false) { toast(r.error, "err"); return devView(); }
   if (r.mine) renderMine(r.mine);
+  if (r.ban) showBan(r.ban);
   if (!r.ok) return toast(r.error, "err");
   $("form").reset(); $("day").textContent = ""; $("count").textContent = "0"; syncOther();
   toast("Заявку подано! Чекай на рішення.", "ok");
