@@ -5,7 +5,7 @@ const SECTIONS = [
   { title: "Головна", home: true, pages: [{ href: "./", title: "Головна" }, { href: "vhid", title: "Хто ти?", hidden: true }] },
   {
     title: "F4", icon: "📝", accent: "#e07a5f",
-    desc: "🛠 У розробці — заявки на вільний день скоро",
+    desc: "Заявка на вільний день: подати, стежити за рішенням, звіт",
     pages: [{ href: "f4", title: "Заявка на вільний день" }],
   },
   {

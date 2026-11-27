@@ -60,6 +60,7 @@ const LAPTOP = "Ноутбук";
 const BLOCK_SITE = "Увесь сайт";
 const BLOCK_BOOKS = "Лише книжки";
 const ROLE_STUDENT = "Студент", ROLE_MENTOR = "Ментор", ROLE_ADMIN = "Адмін";
+const TEST_ACCOUNT = "Тестовий акаунт";
 const ROLE_LEFT = "Пішов(ла) з УАЛ"; // доступ закрито; у «Учасниках» — у розділі «Пішли з УАЛ»
 const F4_WAIT = "На розгляді", F4_YES = "Дозволено", F4_NO = "Заборонено";
 const ACC_WAIT = "Очікує", ACC_YES = "Підтвердити", ACC_NO = "Відхилити", ACC_DONE = "Підтверджено", ACC_REJ = "Відхилено";
@@ -199,8 +200,21 @@ function setup() {
     se.appendRow([SET_LIMIT, 3, "Скільки пристроїв може додати одна людина за своїм посиланням. Для окремої людини — колонка «Ліміт пристроїв» у «Людях»"]);
   }
   if (have.indexOf(SET_F4TEST) < 0) {
-    se.appendRow([SET_F4TEST, "Так", "Так — F4 у розробці: користуються лише ментори й адміни (тестові заявки позначено «ТЕСТ»); Ні — F4 працює для всіх: студентів, менторів і адмінів"]);
+    se.appendRow([SET_F4TEST, "Ні", "Так — F4 у розробці: користуються лише ментори й адміни (тестові заявки позначено «ТЕСТ»); Ні — F4 працює для всіх: студентів, менторів і адмінів"]);
     se.getRange(se.getLastRow(), 2).setDataValidation(listRule_(["Так", "Ні"]));
+  } else if (!PROPS.getProperty("f4Launched")) {     // F4 запущено: один раз вимикаємо режим тестування
+    const v = se.getRange(2, 1, se.getLastRow() - 1, 1).getValues();
+    const at = v.findIndex((r) => String(r[0]).trim() === SET_F4TEST);
+    if (at >= 0) se.getRange(at + 2, 2).setValue("Ні");
+    dropCache_(["settings"]);
+  }
+  PROPS.setProperty("f4Launched", "1");
+
+  // Тестовий акаунт — дивитися сайт очима студента (у списках не видно, F4 — з позначкою «ТЕСТ»)
+  const ppl0 = people_();
+  if (!ppl0.byName[TEST_ACCOUNT]) {
+    ppl0.sheet.getRange(lastPersonRow_(ppl0.sheet) + 1, 1, 1, P_OLD).setValues([[TEST_ACCOUNT, ROLE_STUDENT, true, false, "", "", "", "", "", false, newToken_(), ""]]);
+    dropCache_(["people"]);
   }
 
   const links = site.getSheetByName(SHEET_LINKS);   // посилання тепер прямо в «Людях»
@@ -457,7 +471,7 @@ function people_() {
       byName[name] = rec;
       if (rec.role === ROLE_LEFT) left.push(name);       // пішли з УАЛ — ні входу, ні бібліотеки
       else list.push(name);
-      if (rec.role !== ROLE_MENTOR && rec.role !== ROLE_LEFT) choose.push(name);   // ментори входять лише за своїм посиланням
+      if (rec.role !== ROLE_MENTOR && rec.role !== ROLE_LEFT && name !== TEST_ACCOUNT) choose.push(name);   // ментори входять лише за своїм посиланням
       if (rec.code) byCode[rec.code] = rec;
       if (rec.old) byOld[rec.old] = rec;
     });
@@ -649,7 +663,7 @@ function f4Rows_() {
                       comment: String(r[F_COMMENT - 1] || ""), report: String(r[F_REPORT - 1] || ""), reportAt: r[F_REPORT_AT - 1] }))
     .filter((r) => r.name && r.date instanceof Date);
 }
-const isTestF4_ = (r) => String(r.comment).trim().toUpperCase() === "ТЕСТ";
+const isTestF4_ = (r) => String(r.comment).trim().toUpperCase() === "ТЕСТ" || r.name === TEST_ACCOUNT;
 
 // Причини зі списку (аркуш «Причини» в приватній таблиці F4)
 function f4Reasons_() {
@@ -781,7 +795,7 @@ function rebuildF4_() {
   }
   if (q) refreshFilter_(q);
   if (pub) {
-    write(pub.getSheetByName(SHEET_F4_PUB), rows.map((r) => [r.date, r.name, r.status]), 3);
+    write(pub.getSheetByName(SHEET_F4_PUB), rows.filter((r) => f4Test_() || !isTestF4_(r)).map((r) => [r.date, r.name, r.status]), 3);
   }
   if (q) {                                          // кнопка «Бан 3 дні» — галочки лише в рядках із заявками
     const lastRow = rows.reduce((m, r) => Math.max(m, r.row), 1);
@@ -789,7 +803,7 @@ function rebuildF4_() {
   }
   autoBanF4_(rows);
   if (pv) writeCal_(pv, rows, others);
-  if (pub) writeCal_(pub, rows.filter((r) => r.status !== F4_NO), null);
+  if (pub) writeCal_(pub, rows.filter((r) => r.status !== F4_NO && (f4Test_() || !isTestF4_(r))), null);
 }
 
 // «Календар»: тиждень — рядок дат і під ним по рядку на кожну заявку; Пн…Нд у колонках.
@@ -1145,7 +1159,7 @@ function doGet(e) {
     const who = whoBySession_(p.token);
     if (!who || !who.ok) return json_({ ok: false, auth: false, error: "Спершу підтверди, хто ти" });
     const ppl = people_(), mentors = [], students = [];
-    ppl.list.forEach((n) => (ppl.byName[n].role === ROLE_MENTOR ? mentors : students).push(n));
+    ppl.list.forEach((n) => { if (n !== TEST_ACCOUNT) (ppl.byName[n].role === ROLE_MENTOR ? mentors : students).push(n); });
     return json_({ ok: true, name: who.name, role: who.role, mentors, students, left: ppl.left });
   }
   if (p.f4) {
@@ -1238,7 +1252,7 @@ function doPost(e) {
         return json_({ ok: false, error: "На цей день у тебе вже є заявка", mine: myF4_(who.name) });
       }
       const q = f4_().getSheetByName(SHEET_F4), at = f4FreeRow_(q);
-      q.getRange(at, 1, 1, F_REPORT_AT).setValues([[newToken_(), new Date(), who.name, day, reason, F4_WAIT, test ? "ТЕСТ" : "", "", "", ""]]);
+      q.getRange(at, 1, 1, F_REPORT_AT).setValues([[newToken_(), new Date(), who.name, day, reason, F4_WAIT, test || who.name === TEST_ACCOUNT ? "ТЕСТ" : "", "", "", ""]]);
       logEvent_("F4: заявка", stamp_(day, "dd.MM.yyyy"), who.name, dev, type, "");
       rebuildF4_();
       return json_({ ok: true, mine: myF4_(who.name) });
