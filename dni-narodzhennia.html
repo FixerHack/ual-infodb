@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=20261173">
+  <link rel="stylesheet" href="assets/style.css?v=20261176">
 </head>
 <body>
 <canvas id="confetti"></canvas>
@@ -89,6 +89,14 @@ const NO_DATE = [
   "Чубай Ілля Олександрович",
 ];
 
+// Лише для учасників академії: без підтвердженої особи — замість календаря просимо ввійти
+const ME_OK = (() => { try { return !!localStorage.getItem("ual-token"); } catch (e) { return false; } })();
+if (!ME_OK) {
+  document.querySelector("main .wrap").innerHTML = `<section class="hero"><span class="eyebrow">Лише для учасників академії</span><h1>Дні <span>народження</span></h1></section>
+    <div class="card"><h3>Спершу підтверди, хто ти</h3><p>Дні народження бачать лише студенти й ментори осередку.</p>
+    <a class="btn" href="vhid?next=dni-narodzhennia">Підтвердити, хто я →</a></div>`;
+}
+if (ME_OK) {
 const MONTHS = ["", "січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
 const MONTH_NAME = ["", "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
 const first = (n) => n.split(" ").slice(0, 2).reverse().join(" "); // Ім'я Прізвище
@@ -184,8 +192,9 @@ function launchConfetti() {
     else cv.remove();
   })();
 }
+}
 </script>
-<script src="assets/core.js?v=20261175"></script>
-<script src="assets/site.js?v=20261175"></script>
+<script src="assets/core.js?v=20261176"></script>
+<script src="assets/site.js?v=20261176"></script>
 </body>
 </html>

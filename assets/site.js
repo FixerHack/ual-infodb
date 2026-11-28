@@ -66,7 +66,7 @@ const SECTIONS = [
   },
   {
     title: "Дні народження", icon: "🎂", accent: "#c9d52a",
-    desc: "Календар днів народження студентів і найближчі свята",
+    desc: "Календар днів народження — лише для учасників академії",
     pages: [{ href: "dni-narodzhennia", title: "Дні народження" }],
   },
 ];
@@ -128,6 +128,32 @@ window.UAL_SECTIONS = SECTIONS;
     header.after(bar);
   });
 
+  // Тех роботи (аркуш «Тех роботи» в таблиці сайту): весь сайт або розділ. Адмін бачить сайт зі смужкою.
+  function applyMaint() {
+    const m = typeof UAL !== "undefined" && UAL.maint ? UAL.maint() : {};
+    const key = current === "vhid" ? null : m["Весь сайт"] !== undefined ? "Весь сайт" : m[section.title] !== undefined ? section.title : null;
+    const admin = typeof UAL !== "undefined" && UAL.role === "Адмін";
+    document.getElementById("ual-maint")?.remove();
+    document.getElementById("ual-maint-bar")?.remove();
+    document.documentElement.classList.remove("ual-maint");
+    if (!key) return;
+    const what = key === "Весь сайт" ? "Сайт" : `Розділ «${key}»`;
+    if (admin) {
+      const bar = document.createElement("div");
+      bar.id = "ual-maint-bar"; bar.className = "site-notice maint-bar";
+      bar.innerHTML = `<div class="wrap"><span>🛠 <b>${what} зараз на тех роботах</b> — відвідувачі бачать заглушку, ти (адмін) — сайт.</span></div>`;
+      header.after(bar);
+      return;
+    }
+    const el = document.createElement("div");
+    el.id = "ual-maint"; el.className = "block-screen";
+    el.innerHTML = `<div class="block-box"><div class="block-ico">🛠</div><h1>${what} на технічних роботах</h1>
+      <p>${m[key] ? escN(m[key]).replace(/\n/g, "<br>") : "Скоро все запрацює. Зазирни трохи пізніше."}</p>
+      ${key === "Весь сайт" || section.home ? "" : `<a class="btn" href="./">На головну</a>`}</div>`;
+    document.body.appendChild(el);
+    document.documentElement.classList.add("ual-maint");
+  }
+
   // Повідомлення від адміна (аркуш «Повідомлення» в таблиці сайту)
   const escN = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const linkify = (t) => escN(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g, "<br>");
@@ -153,6 +179,9 @@ window.UAL_SECTIONS = SECTIONS;
   });
   showNotices();
   window.addEventListener("ual:notices", showNotices);
+  applyMaint();
+  window.addEventListener("ual:maint", applyMaint);
+  window.addEventListener("ual:who", applyMaint);
 
   const btn = header.querySelector(".menu-btn");
   const panel = header.querySelector(".menu-panel");

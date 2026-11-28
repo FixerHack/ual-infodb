@@ -101,6 +101,10 @@ const UAL = (() => {
         }
         if (r.who === "none") clearIdentity();
         try { window.dispatchEvent(new Event("ual:who")); } catch (e) {}   // футер оновить «Ти: …»
+        if (r.maint && typeof r.maint === "object") {                      // тех роботи
+          const m = JSON.stringify(r.maint);
+          if (m !== get("ual-maint")) { set("ual-maint", m); try { window.dispatchEvent(new Event("ual:maint")); } catch (e) {} }
+        }
         if (Array.isArray(r.notices)) {                                     // повідомлення від адміна
           set("ual-notices", JSON.stringify(r.notices));
           try { window.dispatchEvent(new Event("ual:notices")); } catch (e) {}
@@ -151,8 +155,10 @@ const UAL = (() => {
     try { fetch(UAL_API_URL, { method: "POST", body, mode: "no-cors", keepalive: true }); } catch (e) {}
   }
 
+  const maint = () => { try { return JSON.parse(get("ual-maint") || "{}"); } catch (e) { return {}; } };
+
   return {
-    device, ua, type, logView, checkBlock, setIdentity, clearIdentity, notices, noticeSeen,
+    device, ua, type, logView, checkBlock, setIdentity, clearIdentity, notices, noticeSeen, maint,
     get token() { return token; }, get me() { return me; }, get role() { return role; },
     lastName: () => get("ual-last-name"),
     rememberName: (n) => set("ual-last-name", n),

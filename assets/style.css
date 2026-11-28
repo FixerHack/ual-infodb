@@ -1057,3 +1057,7 @@ select.field {
 .admin-notice .wrap span a { text-decoration: underline; }
 .admin-notice .btn.small { flex: none; }
 .admin-notice.pinned { background: color-mix(in srgb, #f7aa3a 16%, var(--bg, #fff)); border-bottom-color: color-mix(in srgb, #f7aa3a 40%, transparent); }
+
+/* Тех роботи: смужка для адміна */
+.maint-bar { background: color-mix(in srgb, #f7aa3a 18%, var(--bg, #fff)); border-bottom-color: color-mix(in srgb, #f7aa3a 45%, transparent); }
+html.ual-maint body > *:not(.block-screen) { display: none !important; }

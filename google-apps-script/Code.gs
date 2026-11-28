@@ -32,6 +32,9 @@ const SHEET_F4_PUB = "Заявки";
 const SHEET_F4_REASONS = "Причини";
 const SHEET_F4_CAL = "Календар";
 const SHEET_ONLINE = "Онлайн";
+// Тех роботи: «Весь сайт» або окремі розділи (назви — як у меню сайту, assets/site.js → SECTIONS)
+const SHEET_MAINT = "Тех роботи", MAINT_ALL = "Весь сайт";
+const MAINT_SECTIONS = [MAINT_ALL, "Головна", "F4", "Таймлайн", "Бібліотека", "Навчання", "«ГЕНОМ» Лідера", "Самоврядування", "Партнерства", "Учасники", "Дні народження"];
 const SHEET_NOTICES = "Повідомлення";
 const NOTICE_HEADERS = ["ID", "Текст", "Кому", "Показувати з", "Показувати до", "Увімкнено", "Тип", "Прочитали"];
 const N_ID = 1, N_TEXT = 2, N_TO = 3, N_FROM = 4, N_UNTIL = 5, N_ON = 6, N_KIND = 7, N_SEEN = 8;
@@ -131,7 +134,7 @@ const siteSheet_ = (name) => site_().getSheetByName(name);
 // Кеш читань (CacheService): сайт питає сервер на кожній сторінці, а читати таблиці щоразу — повільно.
 // Будь-яка зміна таблиць скриптом або вручну (тригери onSiteEdit/onSiteChange/onLibEdit) кеш скидає;
 // про всяк випадок записи живуть щонайбільше CACHE_TTL секунд.
-const CACHE_TTL = 300, SITE_KEYS = ["settings", "blocks", "people", "devices", "notices"], LIB_KEYS = ["loans"];
+const CACHE_TTL = 300, SITE_KEYS = ["settings", "blocks", "people", "devices", "notices", "maint"], LIB_KEYS = ["loans"];
 const cache_ = () => CacheService.getScriptCache();
 function cached_(key, fn) {
   try { const hit = cache_().get(key); if (hit) return JSON.parse(hit); } catch (e) {}
@@ -255,6 +258,7 @@ function setup() {
 
   setupOnline_(site);
   setupNotices_(site);
+  setupMaint_(site);
   setupF4_();
   ensurePeople_();
   try { setupWarnings_(); } catch (e) { Logger.log("Попередження: " + e); }
@@ -981,6 +985,39 @@ function myF4_(name) {
 }
 
 // ============================================================================
+// Тех роботи (аркуш «Тех роботи» в таблиці сайту): галочка — розділ або весь сайт закрито
+// екраном «Технічні роботи». Адміни бачать сайт як завжди (зі смужкою-нагадуванням).
+// ============================================================================
+function setupMaint_(site) {
+  let sh = site.getSheetByName(SHEET_MAINT);
+  if (!sh) {
+    sh = site.insertSheet(SHEET_MAINT, 1);
+    bold_(sh, ["Розділ", "Тех роботи", "Текст для відвідувачів (необов'язково)"]);
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(1, 200); sh.setColumnWidth(2, 110); sh.setColumnWidth(3, 520);
+    sh.getRange(1, 5).setValue("Постав галочку — розділ (або весь сайт) закриється екраном «Технічні роботи» протягом хвилини. "
+      + "Адміни бачать сайт як завжди. Сторінка входу «Хто ти?» не закривається.");
+  }
+  const have = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().map((r) => String(r[0]).trim()) : [];
+  const add = MAINT_SECTIONS.filter((x) => have.indexOf(x) < 0);
+  if (add.length) sh.getRange(sh.getLastRow() + 1, 1, add.length, 2).setValues(add.map((x) => [x, false]));
+  sh.getRange(2, 2, sh.getLastRow() - 1, 1).insertCheckboxes();
+  sh.getRange(2, 3, sh.getLastRow() - 1, 1).setWrap(true);
+  return sh;
+}
+function maint_() {
+  return cached_("maint", () => {
+    const sh = siteSheet_(SHEET_MAINT), out = {};
+    if (!sh || sh.getLastRow() < 2) return out;
+    sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues().forEach((r) => {
+      const name = String(r[0]).trim();
+      if (name && r[1] === true) out[name] = String(r[2] || "").trim().slice(0, 500);
+    });
+    return out;
+  });
+}
+
+// ============================================================================
 // Попередження перед зміною важливих клітинок (захист «лише попередження»):
 // Google показує «Ви впевнені?» перед редагуванням чи видаленням (і рядка теж) — і лише тоді змінює.
 // Галочки, ролі, рішення й інші щоденні колонки лишаються без попереджень.
@@ -1351,7 +1388,8 @@ function doGet(e) {
   if (p.check) {
     const dev = cleanDev_(p.device), b = blockOf_(dev);
     const res = { ok: true, block: b === BLOCK_SITE ? "site" : b ? "books" : "", gate: gateOn_(), who: "" };
-    res.notices = noticesFor_("");                  // для гостей — лише «Усім (і гостям)»; нижче замінимо, якщо людина впізнана
+    res.notices = noticesFor_("");
+    res.maint = maint_();                           // { "Розділ": "текст" } — що зараз на тех роботах                  // для гостей — лише «Усім (і гостям)»; нижче замінимо, якщо людина впізнана
     if (cleanToken_(p.token)) {
       const who = whoBySession_(p.token, dev, p.type, p.ua);
       Object.assign(res, whoJson_(who));
