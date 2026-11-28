@@ -120,7 +120,8 @@ window.UAL_SECTIONS = SECTIONS;
     { until: "2026-12-04", html: "📣 <b>Ткаченко Марія</b> більше не навчається в УАЛ Львів. Дякуємо їй за спільний шлях!", link: "uchasnyky" },
   ];
   const todayKey = new Date().toLocaleDateString("sv");
-  NOTICES.filter((n) => todayKey <= n.until).forEach((n) => {
+  const onEntry = current === "vhid";             // на сторінці входу «Хто ти?» — жодних оголошень і повідомлень
+  NOTICES.filter((n) => !onEntry && todayKey <= n.until).forEach((n) => {
     const bar = document.createElement("div");
     bar.className = "site-notice";
     bar.innerHTML = `<div class="wrap"><span>${n.html}</span>${n.link && current !== n.link ? `<a href="${n.link}">Учасники →</a>` : ""}</div>`;
@@ -135,7 +136,7 @@ window.UAL_SECTIONS = SECTIONS;
   header.after(box);
   // Одноразове — «Зрозуміло» закриває назавжди; закріплене 📌 — без кнопки, знімає лише адмін
   function showNotices() {
-    const all = typeof UAL !== "undefined" && UAL.token && UAL.notices ? UAL.notices() : [];
+    const all = !onEntry && typeof UAL !== "undefined" && UAL.token && UAL.notices ? UAL.notices() : [];
     all.sort((a, b) => (a.kind === "pinned" ? 0 : 1) - (b.kind === "pinned" ? 0 : 1));
     box.innerHTML = all.map((n) => `
       <div class="site-notice admin-notice${n.kind === "pinned" ? " pinned" : ""}" data-id="${escN(n.id)}">
