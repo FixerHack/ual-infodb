@@ -133,20 +133,37 @@ window.UAL_SECTIONS = SECTIONS;
   const box = document.createElement("div");
   box.className = "admin-notices";
   header.after(box);
+  const onceShown = {};                       // «Один раз»: показали на цій сторінці — тримаємо до переходу
+  const ICON = { info: "💬", important: "⚠️", once: "📌", critical: "🚨" };
   function showNotices() {
-    const list = typeof UAL !== "undefined" && UAL.token && UAL.notices ? UAL.notices() : [];
-    box.innerHTML = list.map((n) => `
+    const all = typeof UAL !== "undefined" && UAL.token && UAL.notices ? UAL.notices() : [];
+    all.filter((n) => n.kind === "once" && !onceShown[n.id]).forEach((n) => { onceShown[n.id] = n; UAL.noticeSeen(n.id); });
+    const bars = all.filter((n) => n.kind !== "critical" && n.kind !== "once").concat(Object.values(onceShown));
+    box.innerHTML = bars.map((n) => `
       <div class="site-notice admin-notice${n.important ? " important" : ""}" data-id="${escN(n.id)}">
-        <div class="wrap"><span>${n.important ? "⚠️" : "💬"} <b>${n.personal ? "Тобі від адміністратора" : "Від адміністратора"}:</b> ${linkify(n.text)}</span>
-        <button class="btn small ghost" type="button" data-seen>Зрозуміло</button></div>
+        <div class="wrap"><span>${ICON[n.kind] || "💬"} <b>${n.personal ? "Тобі від адміністратора" : "Від адміністратора"}:</b> ${linkify(n.text)}</span>
+        ${n.kind === "once" ? `<button class="btn small ghost" type="button" data-hide>✕</button>` : `<button class="btn small ghost" type="button" data-seen>Зрозуміло</button>`}</div>
       </div>`).join("");
+    // «Критичне» — вікно посеред екрану, по одному
+    const crit = all.find((n) => n.kind === "critical");
+    let modal = document.getElementById("notice-modal");
+    if (!crit) { if (modal) modal.remove(); return; }
+    if (modal && modal.dataset.id === crit.id) return;
+    if (modal) modal.remove();
+    modal = document.createElement("div");
+    modal.id = "notice-modal"; modal.className = "notice-modal"; modal.dataset.id = crit.id;
+    modal.innerHTML = `<div class="notice-modal-box" role="alertdialog" aria-modal="true" aria-labelledby="nm-title">
+      <div class="notice-modal-ico">🚨</div>
+      <h2 id="nm-title">${crit.personal ? "Тобі від адміністратора" : "Важливо від адміністратора"}</h2>
+      <p>${linkify(crit.text)}</p>
+      <button class="btn" type="button" data-crit>Зрозуміло</button></div>`;
+    document.body.appendChild(modal);
+    modal.querySelector("[data-crit]").addEventListener("click", () => { UAL.noticeSeen(crit.id); modal.remove(); showNotices(); });
+    modal.querySelector("[data-crit]").focus();
   }
   box.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-seen]");
-    if (!b) return;
-    const el = b.closest(".admin-notice");
-    UAL.noticeSeen(el.dataset.id);
-    el.remove();
+    const h = e.target.closest("[data-hide]");
+    if (h) { const el = h.closest(".admin-notice"); delete onceShown[el.dataset.id]; el.remove(); }
   });
   showNotices();
   window.addEventListener("ual:notices", showNotices);
