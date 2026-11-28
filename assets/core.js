@@ -54,8 +54,8 @@ const UAL = (() => {
   }
 
   // Екран блокування для пристроїв, заблокованих на весь сайт.
-  // Статус перевіряється раз на 2 хвилини, поки вкладка відкрита й видима.
-  const CHECK_MS = 2 * 60 * 1000;
+  // Статус перевіряється раз на хвилину, поки вкладка відкрита й видима (заодно це «пульс» для аркуша «Онлайн»).
+  const CHECK_MS = 60 * 1000;
   let checking = false;
 
   function showBlocked() {
@@ -84,10 +84,11 @@ const UAL = (() => {
     let cached = {};
     try { cached = JSON.parse(get("ual-block") || "{}"); } catch (e) {}
     if (cached.block === "site") showBlocked();
-    if (checking || (!force && Date.now() - (cached.t || 0) < CHECK_MS)) return Promise.resolve();
+    if (checking || (!force && Date.now() - (cached.t || 0) < CHECK_MS - 5000)) return Promise.resolve();
     checking = true;
     return fetch(UAL_API_URL + "?check=1&device=" + encodeURIComponent(device) + "&token=" + encodeURIComponent(token) +
-        "&type=" + encodeURIComponent(type) + "&ua=" + encodeURIComponent(ua) + "&t=" + Date.now())
+        "&type=" + encodeURIComponent(type) + "&ua=" + encodeURIComponent(ua) +
+        (token && document.visibilityState === "visible" ? "&page=" + encodeURIComponent(document.title.replace(/^УАЛ \| /, "")) : "") + "&t=" + Date.now())
       .then((r) => r.json())
       .then((r) => {
         if (!r || !r.ok) return;
@@ -110,7 +111,17 @@ const UAL = (() => {
 
   // Періодична перевірка лише для видимої вкладки
   setInterval(() => { if (document.visibilityState === "visible") checkBlock(); }, CHECK_MS);
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkBlock(); });
+  // Вкладку сховали/закрили — «пішов»; повернулись — одразу пульс
+  function bye() {
+    if (!UAL_API_URL || !token || get("ual-bye")) return;
+    set("ual-bye", "1");
+    const body = JSON.stringify({ action: "bye", device, ua, type, token });
+    try { navigator.sendBeacon ? navigator.sendBeacon(UAL_API_URL, new Blob([body], { type: "text/plain" })) : fetch(UAL_API_URL, { method: "POST", body, mode: "no-cors", keepalive: true }); } catch (e) {}
+  }
+  function back() { if (get("ual-bye")) { set("ual-bye", ""); checkBlock(true); } else checkBlock(); }
+  document.addEventListener("visibilitychange", () => { document.visibilityState === "visible" ? back() : bye(); });
+  window.addEventListener("pagehide", bye);
+  if (document.visibilityState === "visible" && get("ual-bye")) setTimeout(back, 300);
 
   // Перший візит без коду, а стан перемикача ще невідомий: ховаємо сторінку, поки не спитаємо сервер
   if (!token && !onVhid && gate === "") {

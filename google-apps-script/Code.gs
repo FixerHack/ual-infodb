@@ -31,6 +31,11 @@ const SHEET_F4_DAYS = "По днях";
 const SHEET_F4_PUB = "Заявки";
 const SHEET_F4_REASONS = "Причини";
 const SHEET_F4_CAL = "Календар";
+const SHEET_ONLINE = "Онлайн";
+const ONLINE_HEADERS = ["Ім'я", "Зараз", "Сторінка", "Пристрій", "Сесія з", "Остання активність", "Сесія, хв", "Сьогодні, хв", "Вийшов"];
+const O_NAME = 1, O_NOW = 2, O_PAGE = 3, O_DEV = 4, O_START = 5, O_LAST = 6, O_SESSION = 7, O_TODAY = 8, O_BYE = 9;
+const ONLINE_GAP_MS = 5 * 60 * 1000;   // перерва довша за 5 хв — нова сесія
+const ONLINE_STEP_MS = 150 * 1000;     // до «Сьогодні» за один пульс зараховуємо не більше 2,5 хв
 const CAL_WEEKS_BACK = 0, CAL_WEEKS = 5; // поточний тиждень + 4 наступні (минулі не показуємо)
 // Колонки «F4 → Запити»
 const F4_HEADERS = ["ID", "Подано", "Студент", "Дата", "Причина", "Рішення", "Коментар", "Інших схвалених F4", "Звіт за день", "Звіт подано", "Бан 3 дні"];
@@ -220,6 +225,7 @@ function setup() {
   const links = site.getSheetByName(SHEET_LINKS);   // посилання тепер прямо в «Людях»
   if (links && site.getSheets().length > 1) site.deleteSheet(links);
 
+  setupOnline_(site);
   setupF4_();
   ensurePeople_();
   journalNames_();
@@ -940,6 +946,58 @@ function myF4_(name) {
 }
 
 // ============================================================================
+// Онлайн: хто зараз на сайті і скільки часу (аркуш «Онлайн» у таблиці сайту)
+// Сайт шле «пульс» раз на хвилину, поки вкладка видима, і «bye», коли її ховають.
+// «Зараз» — формула з NOW(): таблиця перераховується щохвилини, тож 🟢 зникає сама.
+// ============================================================================
+function setupOnline_(site) {
+  let sh = site.getSheetByName(SHEET_ONLINE);
+  if (!sh) {
+    sh = site.insertSheet(SHEET_ONLINE, 1);
+    bold_(sh, ONLINE_HEADERS);
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(O_NAME, 220); sh.setColumnWidth(O_NOW, 130); sh.setColumnWidth(O_PAGE, 220); sh.setColumnWidth(O_DEV, 150);
+    sh.getRange(2, O_START, 1000, 2).setNumberFormat("dd.MM HH:mm");
+    sh.hideColumns(O_BYE);
+    const col = sh.getRange(2, O_NOW, 1000, 1);
+    sh.setConditionalFormatRules([
+      SpreadsheetApp.newConditionalFormatRule().whenTextStartsWith("🟢").setBackground("#e2f5ea").setFontColor("#1f8a5a").setBold(true).setRanges([col]).build(),
+      SpreadsheetApp.newConditionalFormatRule().whenTextStartsWith("⚪").setFontColor("#9a9a9a").setRanges([col]).build(),
+    ]);
+  }
+  try { site.setRecalculationInterval(SpreadsheetApp.RecalculationInterval.MINUTE); } catch (e) {}
+  return sh;
+}
+function presence_(name, page, dev, bye) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(3000)) return;
+  try {
+    const sh = siteSheet_(SHEET_ONLINE);
+    if (!sh) return;
+    const last = sh.getLastRow(), now = new Date();
+    let row = 0, cur = null;
+    if (last >= 2) {
+      const v = sh.getRange(2, 1, last - 1, O_BYE).getValues();
+      const i = v.findIndex((r) => String(r[O_NAME - 1]).trim() === name);
+      if (i >= 0) { row = i + 2; cur = v[i]; }
+    }
+    if (!row) row = last + 1;
+    const prev = cur && cur[O_LAST - 1] instanceof Date ? cur[O_LAST - 1] : null;
+    const gap = prev ? now.getTime() - prev.getTime() : Infinity;
+    const start = !prev || gap > ONLINE_GAP_MS || !(cur[O_START - 1] instanceof Date) ? now : cur[O_START - 1];
+    let today = prev && dayKey_(prev) === dayKey_(now) ? Number(cur[O_TODAY - 1]) || 0 : 0;
+    if (prev && gap <= ONLINE_GAP_MS && !(bye && cur[O_BYE - 1] === true)) today += Math.min(gap, ONLINE_STEP_MS) / 60000;
+    const r = row;
+    sh.getRange(row, 1, 1, O_BYE).setValues([[
+      name,
+      `=IF(F${r}="";"";IF(AND(I${r}<>TRUE;NOW()-F${r}<3/1440);"🟢 на сайті";"⚪ не на сайті"))`.replace(/;/g, ","),
+      page || (cur ? cur[O_PAGE - 1] : ""), dev || (cur ? cur[O_DEV - 1] : ""),
+      start, now, Math.round((now - start) / 60000), Math.round(today * 10) / 10, bye === true,
+    ]]);
+  } finally { lock.releaseLock(); }
+}
+
+// ============================================================================
 // Логи
 // ============================================================================
 function logEvent_(event, page, name, dev, type, details) {
@@ -1143,6 +1201,7 @@ function doGet(e) {
       const who = whoBySession_(p.token, dev, p.type, p.ua);
       Object.assign(res, whoJson_(who));
       if (who && who.newToken) res.newToken = who.newToken;
+      if (who && who.ok && p.page) presence_(who.name, String(p.page).slice(0, 80), String(p.ua || "").slice(0, 40), false);
     }
     return json_(res);
   }
@@ -1183,6 +1242,13 @@ function doPost(e) {
   if (d.action === "view") {
     const who = whoBySession_(d.token, dev, type, ua);
     logEvent_(blockOf_(dev) === BLOCK_SITE ? "Перегляд (заблоковано)" : "Перегляд", d.page, who ? who.name : "", dev, type, String(d.title || "") + (ua ? " · " + ua : ""));
+    return json_({ ok: true });
+  }
+
+  // Вкладку закрили або сховали — позначаємо «не на сайті»
+  if (d.action === "bye") {
+    const who = whoBySession_(d.token, dev, type, ua);
+    if (who && who.ok) presence_(who.name, "", "", true);
     return json_({ ok: true });
   }
 
