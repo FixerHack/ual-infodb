@@ -162,8 +162,12 @@ window.UAL_SECTIONS = SECTIONS;
     modal.querySelector("[data-crit]").focus();
   }
   box.addEventListener("click", (e) => {
-    const h = e.target.closest("[data-hide]");
-    if (h) { const el = h.closest(".admin-notice"); delete onceShown[el.dataset.id]; el.remove(); }
+    const b = e.target.closest("[data-seen], [data-hide]");
+    if (!b) return;
+    const el = b.closest(".admin-notice"), id = el.dataset.id;
+    if (b.hasAttribute("data-seen")) UAL.noticeSeen(id);   // «Зрозуміло» — у «Прочитали», більше не показується
+    delete onceShown[id];
+    el.remove();
   });
   showNotices();
   window.addEventListener("ual:notices", showNotices);
