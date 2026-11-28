@@ -984,6 +984,18 @@ function setupOnline_(site) {
   try { site.setRecalculationInterval(SpreadsheetApp.RecalculationInterval.MINUTE); } catch (e) {}
   return sh;
 }
+// Формула «Зараз». Розділювач аргументів залежить від мови таблиці («,» чи «;»):
+// пробуємо «,», якщо таблиця не прийняла (#ERROR!) — «;», і запам'ятовуємо вибір.
+function onlineFormula_(cell, row) {
+  const f = (sep) => `=IF(F${row}=""${sep}""${sep}IF(AND(I${row}<>TRUE${sep}NOW()-F${row}<3/1440)${sep}"🟢 на сайті"${sep}"⚪ не на сайті"))`;
+  const known = PROPS.getProperty("formulaSep");
+  if (known) return cell.setFormula(f(known));
+  cell.setFormula(f(","));
+  SpreadsheetApp.flush();
+  let sep = ",";
+  if (String(cell.getDisplayValue()).indexOf("#ERROR") === 0) { sep = ";"; cell.setFormula(f(sep)); SpreadsheetApp.flush(); }
+  if (String(cell.getDisplayValue()).indexOf("#ERROR") !== 0) PROPS.setProperty("formulaSep", sep);
+}
 function presence_(name, page, dev, bye) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(3000)) return;
@@ -1008,8 +1020,7 @@ function presence_(name, page, dev, bye) {
       page || (cur ? cur[O_PAGE - 1] : ""), dev || (cur ? cur[O_DEV - 1] : ""),
       start, now, Math.round((now - start) / 60000), Math.round(today * 10) / 10, bye === true,
     ]]);
-    // setFormula завжди англійською (з «,»); setValues розбирав би формулу за мовою таблиці — і давав #ERROR!
-    sh.getRange(row, O_NOW).setFormula(`=IF(F${row}="","",IF(AND(I${row}<>TRUE,NOW()-F${row}<3/1440),"🟢 на сайті","⚪ не на сайті"))`);
+    onlineFormula_(sh.getRange(row, O_NOW), row);
   } finally { lock.releaseLock(); }
 }
 
