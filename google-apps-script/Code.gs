@@ -32,6 +32,10 @@ const SHEET_F4_PUB = "Заявки";
 const SHEET_F4_REASONS = "Причини";
 const SHEET_F4_CAL = "Календар";
 const SHEET_ONLINE = "Онлайн";
+const SHEET_NOTICES = "Повідомлення";
+const NOTICE_HEADERS = ["ID", "Текст", "Кому", "Показувати з", "Показувати до", "Увімкнено", "Тип", "Прочитали"];
+const N_ID = 1, N_TEXT = 2, N_TO = 3, N_FROM = 4, N_UNTIL = 5, N_ON = 6, N_KIND = 7, N_SEEN = 8;
+const N_ALL = "Усім", N_INFO = "Звичайне", N_IMPORTANT = "Важливе";
 const ONLINE_HEADERS = ["Ім'я", "Зараз", "Сторінка", "Пристрій", "Сесія з", "Остання активність", "Сесія, хв", "Сьогодні, хв", "Вийшов"];
 const O_NAME = 1, O_NOW = 2, O_PAGE = 3, O_DEV = 4, O_START = 5, O_LAST = 6, O_SESSION = 7, O_TODAY = 8, O_BYE = 9;
 const ONLINE_GAP_MS = 5 * 60 * 1000;   // перерва довша за 5 хв — нова сесія
@@ -119,7 +123,7 @@ const siteSheet_ = (name) => site_().getSheetByName(name);
 // Кеш читань (CacheService): сайт питає сервер на кожній сторінці, а читати таблиці щоразу — повільно.
 // Будь-яка зміна таблиць скриптом або вручну (тригери onSiteEdit/onSiteChange/onLibEdit) кеш скидає;
 // про всяк випадок записи живуть щонайбільше CACHE_TTL секунд.
-const CACHE_TTL = 300, SITE_KEYS = ["settings", "blocks", "people", "devices"], LIB_KEYS = ["loans"];
+const CACHE_TTL = 300, SITE_KEYS = ["settings", "blocks", "people", "devices", "notices"], LIB_KEYS = ["loans"];
 const cache_ = () => CacheService.getScriptCache();
 function cached_(key, fn) {
   try { const hit = cache_().get(key); if (hit) return JSON.parse(hit); } catch (e) {}
@@ -242,6 +246,7 @@ function setup() {
   if (links && site.getSheets().length > 1) site.deleteSheet(links);
 
   setupOnline_(site);
+  setupNotices_(site);
   setupF4_();
   ensurePeople_();
   journalNames_();
@@ -446,6 +451,8 @@ function journalNames_() {
   if (!log) return;
   const ppl = people_();
   log.getRange("D2:D").setDataValidation(listRule_(ppl.list.concat(ppl.left, ["—"])));
+  const ns = siteSheet_(SHEET_NOTICES);
+  if (ns) ns.getRange(2, N_TO, 500, 1).setDataValidation(listRule_([N_ALL].concat(ppl.list)));
   if (!log.getRange("E2").getDataValidation()) log.getRange("E2:E").setDataValidation(listRule_([TAKEN, RETURNED]));
 }
 
@@ -965,6 +972,80 @@ function myF4_(name) {
 }
 
 // ============================================================================
+// Повідомлення від адміна (аркуш «Повідомлення» в таблиці сайту)
+// Рядок = повідомлення: Текст · Кому (Усім / людина) · з · до · ☐ Увімкнено · Тип · Прочитали.
+// Сайт отримує їх разом із перевіркою статусу (раз на хвилину) і показує смужкою під шапкою.
+// ============================================================================
+function setupNotices_(site) {
+  let sh = site.getSheetByName(SHEET_NOTICES);
+  if (sh) return sh;
+  sh = site.insertSheet(SHEET_NOTICES, 1);
+  bold_(sh, NOTICE_HEADERS);
+  sh.setFrozenRows(1);
+  sh.hideColumns(N_ID);
+  sh.setColumnWidth(N_TEXT, 460); sh.setColumnWidth(N_TO, 200); sh.setColumnWidths(N_FROM, 2, 130); sh.setColumnWidth(N_SEEN, 320);
+  sh.getRange(2, N_TEXT, 500, 1).setWrap(true).setVerticalAlignment("top");
+  sh.getRange(2, N_SEEN, 500, 1).setWrap(true).setVerticalAlignment("top");
+  sh.getRange(2, N_FROM, 500, 2).setNumberFormat("dd.MM.yyyy HH:mm");
+  sh.getRange(2, N_KIND, 500, 1).setDataValidation(listRule_([N_INFO, N_IMPORTANT]));
+  sh.getRange(1, 10).setValue("Новий рядок = нове повідомлення. Кому: «Усім» або конкретна людина. Дати можна не ставити. "
+    + "Зняти «Увімкнено» — сховати. Люди закривають повідомлення кнопкою «Зрозуміло» — їхні імена з'являються в «Прочитали».");
+  return sh;
+}
+// Новий текст — ставимо ID, «Усім», «Звичайне», «Увімкнено» і дату початку, якщо порожні
+function fillNotices_() {
+  const sh = siteSheet_(SHEET_NOTICES);
+  if (!sh || sh.getLastRow() < 2) return;
+  const n = sh.getLastRow() - 1, v = sh.getRange(2, 1, n, N_SEEN).getValues();
+  let changed = false;
+  v.forEach((r) => {
+    if (!String(r[N_TEXT - 1]).trim()) return;
+    if (!String(r[N_ID - 1]).trim()) { r[N_ID - 1] = newToken_(); r[N_ON - 1] = true; changed = true; }
+    if (!String(r[N_TO - 1]).trim()) { r[N_TO - 1] = N_ALL; changed = true; }
+    if (!String(r[N_KIND - 1]).trim()) { r[N_KIND - 1] = N_INFO; changed = true; }
+    if (!(r[N_FROM - 1] instanceof Date)) { r[N_FROM - 1] = new Date(); changed = true; }
+  });
+  if (changed) sh.getRange(2, 1, n, N_SEEN).setValues(v);
+  sh.getRange(2, N_ON, n, 1).insertCheckboxes();
+  dropCache_(["notices"]);
+}
+function notices_() {
+  return cached_("notices", () => {
+    const sh = siteSheet_(SHEET_NOTICES);
+    if (!sh || sh.getLastRow() < 2) return [];
+    return sh.getRange(2, 1, sh.getLastRow() - 1, N_SEEN).getValues()
+      .filter((r) => String(r[N_ID - 1]).trim() && String(r[N_TEXT - 1]).trim() && r[N_ON - 1] === true)
+      .map((r) => ({ id: String(r[N_ID - 1]).trim(), text: String(r[N_TEXT - 1]).trim().slice(0, 1000), to: String(r[N_TO - 1]).trim() || N_ALL,
+                     from: r[N_FROM - 1] instanceof Date ? r[N_FROM - 1].getTime() : 0,
+                     until: r[N_UNTIL - 1] instanceof Date ? r[N_UNTIL - 1].getTime() : 0,
+                     important: String(r[N_KIND - 1]).trim() === N_IMPORTANT,
+                     seen: String(r[N_SEEN - 1]).split(",").map((x) => x.trim()).filter(Boolean) }));
+  });
+}
+function noticesFor_(name) {
+  const now = Date.now();
+  return notices_().filter((n) => (n.to === N_ALL || n.to === name) && (!n.from || n.from <= now) && (!n.until || n.until > now) && n.seen.indexOf(name) < 0)
+    .map((n) => ({ id: n.id, text: n.text, important: n.important, personal: n.to !== N_ALL }));
+}
+function noticeSeen_(id, name) {
+  if (!id) return;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+  try {
+    const sh = siteSheet_(SHEET_NOTICES);
+    if (!sh || sh.getLastRow() < 2) return;
+    const ids = sh.getRange(2, N_ID, sh.getLastRow() - 1, 1).getValues().map((r) => String(r[0]).trim());
+    const i = ids.indexOf(id);
+    if (i < 0) return;
+    const cell = sh.getRange(i + 2, N_SEEN), seen = String(cell.getValue()).split(",").map((x) => x.trim()).filter(Boolean);
+    if (seen.indexOf(name) >= 0) return;
+    seen.push(name);
+    cell.setValue(seen.join(", "));
+    dropCache_(["notices"]);
+  } finally { lock.releaseLock(); }
+}
+
+// ============================================================================
 // Онлайн: хто зараз на сайті і скільки часу (аркуш «Онлайн» у таблиці сайту)
 // Сайт шле «пульс» раз на хвилину, поки вкладка видима, і «bye», коли її ховають.
 // «Зараз» — текст: 🟢 на пульс, ⚪ на «bye»; хто зник мовчки — ⚪ через тригер кожні 5 хв.
@@ -1182,6 +1263,7 @@ function onSiteEdit(e) {
     countDevices_();
   }
   if (name === SHEET_ACCESS) processAccess_();
+  if (name === SHEET_NOTICES) fillNotices_();
 }
 
 // «F4 → Запити»: рішення змінилося — оновлюємо «По днях» і публічну таблицю
@@ -1233,6 +1315,7 @@ function doGet(e) {
       const who = whoBySession_(p.token, dev, p.type, p.ua);
       Object.assign(res, whoJson_(who));
       if (who && who.newToken) res.newToken = who.newToken;
+      if (who && who.ok) res.notices = noticesFor_(who.name);
       if (who && who.ok && p.page) presence_(who.name, String(p.page).slice(0, 80), String(p.ua || "").slice(0, 40), false);
     }
     return json_(res);
@@ -1278,6 +1361,13 @@ function doPost(e) {
   if (d.action === "view") {
     const who = whoBySession_(d.token, dev, type, ua);
     logEvent_(blockOf_(dev) === BLOCK_SITE ? "Перегляд (заблоковано)" : "Перегляд", d.page, who ? who.name : "", dev, type, String(d.title || "") + (ua ? " · " + ua : ""));
+    return json_({ ok: true });
+  }
+
+  // «Зрозуміло» на повідомленні — дописуємо людину в «Прочитали»
+  if (d.action === "noticeSeen") {
+    const who = whoBySession_(d.token, dev, type, ua);
+    if (who && who.ok) noticeSeen_(String(d.id || "").replace(/[^a-z0-9]/gi, "").slice(0, 32), who.name);
     return json_({ ok: true });
   }
 

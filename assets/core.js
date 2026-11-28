@@ -101,6 +101,10 @@ const UAL = (() => {
         }
         if (r.who === "none") clearIdentity();
         try { window.dispatchEvent(new Event("ual:who")); } catch (e) {}   // футер оновить «Ти: …»
+        if (Array.isArray(r.notices)) {                                     // повідомлення від адміна
+          set("ual-notices", JSON.stringify(r.notices));
+          try { window.dispatchEvent(new Event("ual:notices")); } catch (e) {}
+        } else if (r.who === "none") set("ual-notices", "[]");
         if (gate === "1" && !token) { toVhid(); return; }
         if (r.block === "site") showBlocked();
         else if (document.getElementById("ual-blocked")) location.reload();
@@ -131,8 +135,16 @@ const UAL = (() => {
     checkBlock(true).finally(show);
   }
 
+  // Повідомлення від адміна: останні отримані (щоб показати одразу) і «Зрозуміло»
+  function notices() { try { return JSON.parse(get("ual-notices") || "[]"); } catch (e) { return []; } }
+  function noticeSeen(id) {
+    set("ual-notices", JSON.stringify(notices().filter((n) => n.id !== id)));
+    const body = JSON.stringify({ action: "noticeSeen", id, device, ua, type, token });
+    try { fetch(UAL_API_URL, { method: "POST", body, mode: "no-cors", keepalive: true }); } catch (e) {}
+  }
+
   return {
-    device, ua, type, logView, checkBlock, setIdentity, clearIdentity,
+    device, ua, type, logView, checkBlock, setIdentity, clearIdentity, notices, noticeSeen,
     get token() { return token; }, get me() { return me; }, get role() { return role; },
     lastName: () => get("ual-last-name"),
     rememberName: (n) => set("ual-last-name", n),

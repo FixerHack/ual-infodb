@@ -127,6 +127,30 @@ window.UAL_SECTIONS = SECTIONS;
     header.after(bar);
   });
 
+  // Повідомлення від адміна (аркуш «Повідомлення» в таблиці сайту)
+  const escN = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const linkify = (t) => escN(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g, "<br>");
+  const box = document.createElement("div");
+  box.className = "admin-notices";
+  header.after(box);
+  function showNotices() {
+    const list = typeof UAL !== "undefined" && UAL.token && UAL.notices ? UAL.notices() : [];
+    box.innerHTML = list.map((n) => `
+      <div class="site-notice admin-notice${n.important ? " important" : ""}" data-id="${escN(n.id)}">
+        <div class="wrap"><span>${n.important ? "⚠️" : "💬"} <b>${n.personal ? "Тобі від адміністратора" : "Від адміністратора"}:</b> ${linkify(n.text)}</span>
+        <button class="btn small ghost" type="button" data-seen>Зрозуміло</button></div>
+      </div>`).join("");
+  }
+  box.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-seen]");
+    if (!b) return;
+    const el = b.closest(".admin-notice");
+    UAL.noticeSeen(el.dataset.id);
+    el.remove();
+  });
+  showNotices();
+  window.addEventListener("ual:notices", showNotices);
+
   const btn = header.querySelector(".menu-btn");
   const panel = header.querySelector(".menu-panel");
   const setOpen = (open) => {
