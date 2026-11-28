@@ -136,7 +136,7 @@ window.UAL_SECTIONS = SECTIONS;
   header.after(box);
   // Одноразове — «Зрозуміло» закриває назавжди; закріплене 📌 — без кнопки, знімає лише адмін
   function showNotices() {
-    const all = !onEntry && typeof UAL !== "undefined" && UAL.token && UAL.notices ? UAL.notices() : [];
+    const all = !onEntry && typeof UAL !== "undefined" && UAL.notices ? UAL.notices() : [];
     all.sort((a, b) => (a.kind === "pinned" ? 0 : 1) - (b.kind === "pinned" ? 0 : 1));
     box.innerHTML = all.map((n) => `
       <div class="site-notice admin-notice${n.kind === "pinned" ? " pinned" : ""}" data-id="${escN(n.id)}">

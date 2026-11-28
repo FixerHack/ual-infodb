@@ -36,6 +36,10 @@ const SHEET_NOTICES = "Повідомлення";
 const NOTICE_HEADERS = ["ID", "Текст", "Кому", "Показувати з", "Показувати до", "Увімкнено", "Тип", "Прочитали"];
 const N_ID = 1, N_TEXT = 2, N_TO = 3, N_FROM = 4, N_UNTIL = 5, N_ON = 6, N_KIND = 7, N_SEEN = 8;
 const N_ALL = "Усім", N_ONCE = "Одноразове", N_PINNED = "Закріплене";
+// Кому: усім відвідувачам (і без входу) / лише учасникам академії (хто ввійшов) / конкретній людині.
+// Старе «Усім» = учасникам академії.
+const N_PUBLIC = "Усім (і гостям)", N_MEMBERS = "Учасникам академії";
+const noticeGroup_ = (to) => (to === N_PUBLIC ? "public" : !to || to === N_MEMBERS || to === N_ALL ? "members" : "person");
 const N_TYPES = [N_ONCE, N_PINNED];
 // Одноразове — людина закрила «Зрозуміло» і більше не бачить; закріплене — закрити не можна, лише адмін вимикає.
 // Старі назви типів («Звичайне», «Важливе», «Один раз», «Критичне») вважаємо одноразовими.
@@ -253,6 +257,7 @@ function setup() {
   setupNotices_(site);
   setupF4_();
   ensurePeople_();
+  try { setupWarnings_(); } catch (e) { Logger.log("Попередження: " + e); }
   journalNames_();
   writeStatus_(loans_());
   installTriggers_();
@@ -456,7 +461,7 @@ function journalNames_() {
   const ppl = people_();
   log.getRange("D2:D").setDataValidation(listRule_(ppl.list.concat(ppl.left, ["—"])));
   const ns = siteSheet_(SHEET_NOTICES);
-  if (ns) ns.getRange(2, N_TO, 500, 1).setDataValidation(listRule_([N_ALL].concat(ppl.list)));
+  if (ns) ns.getRange(2, N_TO, 500, 1).setDataValidation(listRule_([N_MEMBERS, N_PUBLIC].concat(ppl.list)));
   if (!log.getRange("E2").getDataValidation()) log.getRange("E2:E").setDataValidation(listRule_([TAKEN, RETURNED]));
 }
 
@@ -976,6 +981,32 @@ function myF4_(name) {
 }
 
 // ============================================================================
+// Попередження перед зміною важливих клітинок (захист «лише попередження»):
+// Google показує «Ви впевнені?» перед редагуванням чи видаленням (і рядка теж) — і лише тоді змінює.
+// Галочки, ролі, рішення й інші щоденні колонки лишаються без попереджень.
+// ============================================================================
+const WARN_DESC = "УАЛ: попередження перед зміною";
+function warnRange_(range, what) {
+  const sh = range.getSheet(), desc = WARN_DESC + " — " + what;
+  if (sh.getProtections(SpreadsheetApp.ProtectionType.RANGE).some((p) => p.getDescription() === desc)) return;
+  range.protect().setDescription(desc).setWarningOnly(true);
+}
+function setupWarnings_() {
+  const pp = siteSheet_(SHEET_PEOPLE);
+  if (pp) {
+    warnRange_(pp.getRange(2, P_NAME, 999, 1), "імена в «Людях» (за іменем прив'язані пристрої, книжки й F4)");
+    warnRange_(pp.getRange(2, P_CODE, 999, 2), "приховані коди посилань");
+  }
+  const dv = siteSheet_(SHEET_DEVICES);
+  if (dv) {
+    warnRange_(dv.getRange(2, D_NAME, 999, D_LOGOUT - 1), "пристрої (щоб вийти з пристрою — галочка «Вийти»)");
+    warnRange_(dv.getRange(2, D_DEV, 999, 2), "коди пристроїв і сесій");
+  }
+  const q = f4_() && f4_().getSheetByName(SHEET_F4);
+  if (q) warnRange_(q.getRange(2, F_ID, 999, F_DATE), "заявки F4: ID, подано, студент, дата");
+}
+
+// ============================================================================
 // Повідомлення від адміна (аркуш «Повідомлення» в таблиці сайту)
 // Рядок = повідомлення: Текст · Кому (Усім / людина) · з · до · ☐ Увімкнено · Тип · Прочитали.
 // Сайт отримує їх разом із перевіркою статусу (раз на хвилину) і показує смужкою під шапкою.
@@ -992,7 +1023,7 @@ function setupNotices_(site) {
   sh.getRange(2, N_SEEN, 500, 1).setWrap(true).setVerticalAlignment("top");
   sh.getRange(2, N_FROM, 500, 2).setNumberFormat("dd.MM.yyyy HH:mm");
   sh.getRange(2, N_KIND, 500, 1).setDataValidation(listRule_(N_TYPES));
-  sh.getRange(1, 10).setValue("Новий рядок = нове повідомлення. Кому: «Усім» або конкретна людина. Дати можна не ставити. "
+  sh.getRange(1, 10).setValue("Новий рядок = нове повідомлення. Кому: «Учасникам академії» (хто ввійшов), «Усім (і гостям)» або конкретна людина. Дати можна не ставити. "
     + "Зняти «Увімкнено» — сховати. Тип: Одноразове — людина закриває «Зрозуміло» і більше не бачить; "
     + "Закріплене — закрити не можна, висить, доки не знімеш «Увімкнено». Хто закрив одноразове — у «Прочитали».");
   return sh;
@@ -1006,7 +1037,7 @@ function fillNotices_() {
   v.forEach((r) => {
     if (!String(r[N_TEXT - 1]).trim()) return;
     if (!String(r[N_ID - 1]).trim()) { r[N_ID - 1] = newToken_(); r[N_ON - 1] = true; changed = true; }
-    if (!String(r[N_TO - 1]).trim()) { r[N_TO - 1] = N_ALL; changed = true; }
+    if (!String(r[N_TO - 1]).trim() || String(r[N_TO - 1]).trim() === N_ALL) { r[N_TO - 1] = N_MEMBERS; changed = true; }
     if (N_TYPES.indexOf(String(r[N_KIND - 1]).trim()) < 0) { r[N_KIND - 1] = noticeKind_(r[N_KIND - 1]) === "pinned" ? N_PINNED : N_ONCE; changed = true; }
     if (!(r[N_FROM - 1] instanceof Date)) { r[N_FROM - 1] = new Date(); changed = true; }
   });
@@ -1020,7 +1051,7 @@ function notices_() {
     if (!sh || sh.getLastRow() < 2) return [];
     return sh.getRange(2, 1, sh.getLastRow() - 1, N_SEEN).getValues()
       .filter((r) => String(r[N_ID - 1]).trim() && String(r[N_TEXT - 1]).trim() && r[N_ON - 1] === true)
-      .map((r) => ({ id: String(r[N_ID - 1]).trim(), text: String(r[N_TEXT - 1]).trim().slice(0, 1000), to: String(r[N_TO - 1]).trim() || N_ALL,
+      .map((r) => ({ id: String(r[N_ID - 1]).trim(), text: String(r[N_TEXT - 1]).trim().slice(0, 1000), to: String(r[N_TO - 1]).trim() || N_MEMBERS,
                      from: r[N_FROM - 1] instanceof Date ? r[N_FROM - 1].getTime() : 0,
                      until: r[N_UNTIL - 1] instanceof Date ? r[N_UNTIL - 1].getTime() : 0,
                      kind: noticeKind_(r[N_KIND - 1]),
@@ -1029,9 +1060,12 @@ function notices_() {
 }
 function noticesFor_(name) {
   const now = Date.now();
-  return notices_().filter((n) => (n.to === N_ALL || n.to === name) && (!n.from || n.from <= now) && (!n.until || n.until > now)
-                                && (n.kind === "pinned" || n.seen.indexOf(name) < 0))
-    .map((n) => ({ id: n.id, text: n.text, kind: n.kind, personal: n.to !== N_ALL }));
+  // name порожнє — гість без входу: лише «Усім (і гостям)»
+  return notices_().filter((n) => {
+    const g = noticeGroup_(n.to);
+    if (g === "public" ? false : g === "members" ? !name : n.to !== name) return false;
+    return (!n.from || n.from <= now) && (!n.until || n.until > now) && (n.kind === "pinned" || !name || n.seen.indexOf(name) < 0);
+  }).map((n) => ({ id: n.id, text: n.text, kind: n.kind, personal: noticeGroup_(n.to) === "person" }));
 }
 function noticeSeen_(id, name) {
   if (!id) return;
@@ -1317,6 +1351,7 @@ function doGet(e) {
   if (p.check) {
     const dev = cleanDev_(p.device), b = blockOf_(dev);
     const res = { ok: true, block: b === BLOCK_SITE ? "site" : b ? "books" : "", gate: gateOn_(), who: "" };
+    res.notices = noticesFor_("");                  // для гостей — лише «Усім (і гостям)»; нижче замінимо, якщо людина впізнана
     if (cleanToken_(p.token)) {
       const who = whoBySession_(p.token, dev, p.type, p.ua);
       Object.assign(res, whoJson_(who));
