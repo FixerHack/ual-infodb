@@ -47,6 +47,7 @@ for b in raw:
             out = subprocess.run(["sips", "-g", "pixelWidth", "-g", "pixelHeight", os.path.join(ROOT, front)], capture_output=True, text=True).stdout
             w, h = (int(x) for x in re.findall(r"pixel\w+: (\d+)", out))
             if w / h > 0.85: o["ratio"] = f"{w} / {h}"
+        if o2.get("aka"): o["aka"] = o2["aka"]  # інші назви — для пошуку (наприклад, українська назва англійської книжки)
         o.update(front=front, short=short, description=desc)
         if front.endswith(".jpg"):  # мініатюра для каталогу — щоб сторінка вантажилась швидко
             th = f"assets/library/thumbs/{bid}.jpg"

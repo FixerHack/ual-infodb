@@ -3863,6 +3863,7 @@ BOOKS.push(...[
   "year": 2015,
   "pages": 512,
   "isbn": "978-0-099-59008-8",
+  "aka": "Сапієнс. Людина розумна",
   "front": "assets/library/sapiens-en-front.jpg",
   "short": "Як людина розумна підкорила планету: коротка історія людства англійською.",
   "description": [
@@ -3881,6 +3882,7 @@ BOOKS.push(...[
   "year": 2011,
   "pages": 432,
   "isbn": "978-0-261-10359-7",
+  "aka": "Володар перснів. Повернення короля",
   "front": "assets/library/lotr-return-of-the-king-front.jpg",
   "short": "Остання частина «Володаря Перснів» англійською.",
   "description": [
@@ -3913,6 +3915,7 @@ BOOKS.push(...[
   "title": "The Fourth Republic",
   "authorId": "borys-lozhkin",
   "genre": "Англійською та іншими мовами",
+  "aka": "Четверта республіка",
   "front": "assets/library/fourth-republic-en-front.svg",
   "short": "Англомовне видання «Четвертої республіки»: чому Європі потрібна Україна, а Україні — Європа.",
   "description": [
@@ -4158,6 +4161,7 @@ BOOKS.push(...[
   "pages": 128,
   "isbn": "978-989-9135-79-6",
   "translator": "Katherine Woods",
+  "aka": "Маленький принц",
   "front": "assets/library/little-prince-en-front.jpg",
   "short": "«Маленький принц» англійською — з передмовою португальського письменника Валтера Уго Мае.",
   "description": [

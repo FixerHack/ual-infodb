@@ -76,7 +76,7 @@
 <script src="assets/core.js?v=20261155"></script>
 <script src="assets/students.js?v=20261160"></script>
 <script src="assets/library-data.js?v=20261130"></script>
-<script src="assets/library-data-2.js?v=20261164"></script>
+<script src="assets/library-data-2.js?v=20261165"></script>
 <script src="assets/library.js?v=20261145"></script>
 <script>
 let loans = {};
@@ -120,7 +120,7 @@ function render() {
     .filter((b) => F.genre === "Усі" || b.genre === F.genre)
     .filter((b) => !F.author || aname(b) === F.author)
     .filter((b) => F.status === "all" || (F.status === "taken") === !!loans[b.id])
-    .filter((b) => !q || norm(b.title).includes(q) || norm(aname(b)).includes(q))
+    .filter((b) => !q || norm(b.title).includes(q) || norm(aname(b)).includes(q) || (b.aka && norm(b.aka).includes(q)))
     .sort((a, b) => {
       // Тиха допомога: у «Зайнятих» спершу книжки, що на руках у цього користувача
       if (F.status === "taken") {
