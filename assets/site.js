@@ -175,7 +175,7 @@ window.UAL_SECTIONS = SECTIONS;
   document.body.appendChild(footer);
   // Хто ти — у футері, з можливістю змінити
   // Ментор / адмін — з позначкою ролі (видно, що сайт уже підтягнув роль з таблиці)
-  const roleTag = (r) => (r === "Адмін" ? " (адмін)" : r === "Ментор" ? " (ментор)" : "");
+  const roleTag = (r) => (r === "Адмін" ? " (адмін)" : r === "Ментор" ? " (ментор)" : r === "Керівник осередку" ? " (керівник)" : "");
   const me = document.createElement("a");
   me.className = "footer-me";
   me.href = "vhid";

@@ -19,7 +19,7 @@
     <section class="hero">
       <span class="eyebrow">Лише для студентів і менторів</span>
       <h1>Учасники <span>УАЛ</span></h1>
-      <p class="lead">Хто зараз навчається в осередку УАЛ Львів, хто нас супроводжує, і хто вже пішов з Академії.</p>
+      <p class="lead">Хто зараз навчається в осередку УАЛ Львів, хто нас веде й супроводжує, і хто вже пішов з Академії.</p>
     </section>
     <div id="out"><div class="card"><div class="skeleton"></div></div></div>
   </div>
@@ -58,12 +58,13 @@ async function load() {
   let n = 0;
   const num = () => String(++n).padStart(2, "0");
   out.innerHTML =
+    ((r.heads || []).length ? block(num(), "Керівник осередку", r.heads.length, cards(r.heads, r.name, "керівник осередку")) : "") +
     (r.mentors.length ? block(num(), "Ментори", r.mentors.length, cards(r.mentors, r.name, "ментор")) : "") +
     block(num(), "Студенти", r.students.length, cards(r.students, r.name, "")) +
     (r.left.length ? block(num(), "Пішли з УАЛ", r.left.length, cards(r.left, r.name, "", true)) : "");
 }
 load();
 </script>
-<script src="assets/site.js?v=20261161"></script>
+<script src="assets/site.js?v=20261169"></script>
 </body>
 </html>

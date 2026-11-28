@@ -64,7 +64,9 @@ const PHONE = "Телефон";
 const LAPTOP = "Ноутбук";
 const BLOCK_SITE = "Увесь сайт";
 const BLOCK_BOOKS = "Лише книжки";
-const ROLE_STUDENT = "Студент", ROLE_MENTOR = "Ментор", ROLE_ADMIN = "Адмін";
+const ROLE_STUDENT = "Студент", ROLE_MENTOR = "Ментор", ROLE_ADMIN = "Адмін", ROLE_HEAD = "Керівник осередку";
+// ментор або керівник осередку: входять лише за посиланням, F4 відкрите й у тестовому режимі
+const isStaff_ = (role) => role === ROLE_MENTOR || role === ROLE_HEAD;
 const TEST_ACCOUNT = "Тестовий акаунт";
 const ROLE_LEFT = "Пішов(ла) з УАЛ"; // доступ закрито; у «Учасниках» — у розділі «Пішли з УАЛ»
 const F4_WAIT = "На розгляді", F4_YES = "Дозволено", F4_NO = "Заборонено";
@@ -215,6 +217,20 @@ function setup() {
   }
   PROPS.setProperty("f4Launched", "1");
 
+  // Одноразово: Марія й Ілля пішли з УАЛ, Ростислав Юник — керівник осередку
+  if (!PROPS.getProperty("roles20261128")) {
+    const pp = siteSheet_(SHEET_PEOPLE), last = pp ? lastPersonRow_(pp) : 1;
+    if (last >= 2) {
+      const names = pp.getRange(2, P_NAME, last - 1, 1).getValues().map((r) => String(r[0]).replace(/\s+/g, " ").trim());
+      const set = (test, role) => names.forEach((n, i) => { if (test(n)) pp.getRange(i + 2, P_ROLE).setValue(role); });
+      set((n) => n === "Ткаченко Марія" || n === "Марія Ткаченко", ROLE_LEFT);
+      set((n) => n === "Чубай Ілля" || n === "Ілля Чубай", ROLE_LEFT);
+      set((n) => /Юник/.test(n) && /Ростислав|Ростик/.test(n), ROLE_HEAD);
+      dropCache_(["people"]);
+    }
+    PROPS.setProperty("roles20261128", "1");
+  }
+
   // Тестовий акаунт — дивитися сайт очима студента (у списках не видно, F4 — з позначкою «ТЕСТ»)
   const ppl0 = people_();
   if (!ppl0.byName[TEST_ACCOUNT]) {
@@ -320,7 +336,7 @@ function lastPersonRow_(pp) {
 function formatPeople_(pp) {
   const n = lastPersonRow_(pp) - 1;
   if (n < 1) return;
-  pp.getRange(2, P_ROLE, n, 1).setDataValidation(listRule_([ROLE_STUDENT, ROLE_MENTOR, ROLE_ADMIN, ROLE_LEFT]));
+  pp.getRange(2, P_ROLE, n, 1).setDataValidation(listRule_([ROLE_STUDENT, ROLE_MENTOR, ROLE_HEAD, ROLE_ADMIN, ROLE_LEFT]));
   [P_ACCESS, P_BLOCKED, P_RELINK, P_F4BAN].forEach((c) => pp.getRange(2, c, n, 1).insertCheckboxes());
   pp.getRange(2, P_F4BAN_UNTIL, n, 1).setNumberFormat("dd.MM.yyyy HH:mm");
   pp.getRange(2, P_BOOKS, n, 1).setWrap(true).setVerticalAlignment("top");
@@ -448,7 +464,7 @@ function settings_() {
 const gateOn_ = () => String(settings_()[SET_GATE] || "").trim() === "Так";
 const f4Test_ = () => String(settings_()[SET_F4TEST] == null ? "Так" : settings_()[SET_F4TEST]).trim() !== "Ні";
 // Хто може подавати F4: у тестовому режимі — ментори й адміни, у робочому — усі
-const f4Allowed_ = (role, test) => !test || role === ROLE_ADMIN || role === ROLE_MENTOR;
+const f4Allowed_ = (role, test) => !test || role === ROLE_ADMIN || isStaff_(role);
 const defaultLimit_ = () => { const v = Number(settings_()[SET_LIMIT]); return v > 0 ? Math.floor(v) : 3; };
 
 function people_() {
@@ -465,7 +481,7 @@ function people_() {
       const lim = Number(r[P_LIMIT - 1]);
       const role = String(r[P_ROLE - 1]).trim();
       const rec = {
-        row: i + 2, name, role: role === ROLE_MENTOR || role === ROLE_ADMIN || role === ROLE_LEFT ? role : ROLE_STUDENT,
+        row: i + 2, name, role: [ROLE_MENTOR, ROLE_HEAD, ROLE_ADMIN, ROLE_LEFT].indexOf(role) >= 0 ? role : ROLE_STUDENT,
         access: r[P_ACCESS - 1] !== false, blocked: r[P_BLOCKED - 1] === true, limit: lim > 0 ? Math.floor(lim) : def,
         code: String(r[P_CODE - 1]).trim(), old: String(r[P_OLD - 1]).trim(),
       };
@@ -477,7 +493,7 @@ function people_() {
       byName[name] = rec;
       if (rec.role === ROLE_LEFT) left.push(name);       // пішли з УАЛ — ні входу, ні бібліотеки
       else list.push(name);
-      if (rec.role !== ROLE_MENTOR && rec.role !== ROLE_LEFT && name !== TEST_ACCOUNT) choose.push(name);   // ментори входять лише за своїм посиланням
+      if (!isStaff_(rec.role) && rec.role !== ROLE_LEFT && name !== TEST_ACCOUNT) choose.push(name);   // ментори входять лише за своїм посиланням
       if (rec.code) byCode[rec.code] = rec;
       if (rec.old) byOld[rec.old] = rec;
     });
@@ -628,7 +644,7 @@ function processAccess_() {
       logEvent_("Доступ відхилено", "", name, r[4], r[5], "людина пішла з УАЛ");
       return;
     }
-    if (rec && rec.role === ROLE_MENTOR) {           // ментори — лише за особистим посиланням
+    if (rec && isStaff_(rec.role)) {               // ментори й керівник — лише за особистим посиланням
       sheet.getRange(i + 2, 8).setValue(ACC_REJ);
       logEvent_("Доступ відхилено", "", name, r[4], r[5], "ментор входить лише за особистим посиланням");
       return;
@@ -1217,9 +1233,13 @@ function doGet(e) {
   if (p.members) {                                   // «Учасники УАЛ» — лише для своїх
     const who = whoBySession_(p.token);
     if (!who || !who.ok) return json_({ ok: false, auth: false, error: "Спершу підтверди, хто ти" });
-    const ppl = people_(), mentors = [], students = [];
-    ppl.list.forEach((n) => { if (n !== TEST_ACCOUNT) (ppl.byName[n].role === ROLE_MENTOR ? mentors : students).push(n); });
-    return json_({ ok: true, name: who.name, role: who.role, mentors, students, left: ppl.left });
+    const ppl = people_(), heads = [], mentors = [], students = [];
+    ppl.list.forEach((n) => {
+      if (n === TEST_ACCOUNT) return;
+      const r = ppl.byName[n].role;
+      (r === ROLE_HEAD ? heads : r === ROLE_MENTOR ? mentors : students).push(n);
+    });
+    return json_({ ok: true, name: who.name, role: who.role, heads, mentors, students, left: ppl.left });
   }
   if (p.f4) {
     const test = f4Test_(), who = whoBySession_(p.token);
@@ -1282,7 +1302,7 @@ function doPost(e) {
       if (blockOf_(dev)) return json_({ ok: false, error: "З цього пристрою доступ заборонено." });
       const known = people_().byName[name], isNew = !known;
       if (known && known.role === ROLE_LEFT) return json_({ ok: false, error: "Доступ для «" + name + "» закрито. Звернись до адміністратора." });
-      if (known && known.role === ROLE_MENTOR) return json_({ ok: false, error: "Ментори входять лише за своїм особистим посиланням. Попроси його в адміністратора." });
+      if (known && isStaff_(known.role)) return json_({ ok: false, error: "Ментори й керівник входять лише за своїм особистим посиланням. Попроси його в адміністратора." });
       const { sheet, rows } = accessRows_();
       const open = rows.find((r) => String(r[4]) === dev && String(r[2]).trim() === name && !String(r[7]).trim());
       if (open) return json_({ ok: true, req: String(open[0]) });
