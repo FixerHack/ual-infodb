@@ -430,6 +430,9 @@ function installTriggers_() {
   [["onLibEdit", lib_().getId()], ["onSiteEdit", PROPS.getProperty("siteId")], ["onF4Edit", PROPS.getProperty("f4Id")]].forEach(([fn, id]) => {
     if (id && have.indexOf(fn + "|" + id) < 0) ScriptApp.newTrigger(fn).forSpreadsheet(id).onEdit().create();
   });
+  // кожні 5 хв: «Онлайн» — хто зник без «bye», стає ⚪
+  if (!ScriptApp.getProjectTriggers().some((t) => t.getHandlerFunction() === "onOnlineTick"))
+    ScriptApp.newTrigger("onOnlineTick").timeBased().everyMinutes(5).create();
   // щоночі зсуваємо «Календар» F4 на новий день
   if (!ScriptApp.getProjectTriggers().some((t) => t.getHandlerFunction() === "onF4Daily"))
     ScriptApp.newTrigger("onF4Daily").timeBased().everyDays(1).atHour(0).nearMinute(5).create();
@@ -964,7 +967,7 @@ function myF4_(name) {
 // ============================================================================
 // Онлайн: хто зараз на сайті і скільки часу (аркуш «Онлайн» у таблиці сайту)
 // Сайт шле «пульс» раз на хвилину, поки вкладка видима, і «bye», коли її ховають.
-// «Зараз» — формула з NOW(): таблиця перераховується щохвилини, тож 🟢 зникає сама.
+// «Зараз» — текст: 🟢 на пульс, ⚪ на «bye»; хто зник мовчки — ⚪ через тригер кожні 5 хв.
 // ============================================================================
 function setupOnline_(site) {
   let sh = site.getSheetByName(SHEET_ONLINE);
@@ -984,17 +987,17 @@ function setupOnline_(site) {
   try { site.setRecalculationInterval(SpreadsheetApp.RecalculationInterval.MINUTE); } catch (e) {}
   return sh;
 }
-// Формула «Зараз». Розділювач аргументів залежить від мови таблиці («,» чи «;»):
-// пробуємо «,», якщо таблиця не прийняла (#ERROR!) — «;», і запам'ятовуємо вибір.
-function onlineFormula_(cell, row) {
-  const f = (sep) => `=IF(F${row}=""${sep}""${sep}IF(AND(I${row}<>TRUE${sep}NOW()-F${row}<3/1440)${sep}"🟢 на сайті"${sep}"⚪ не на сайті"))`;
-  const known = PROPS.getProperty("formulaSep");
-  if (known) return cell.setFormula(f(known));
-  cell.setFormula(f(","));
-  SpreadsheetApp.flush();
-  let sep = ",";
-  if (String(cell.getDisplayValue()).indexOf("#ERROR") === 0) { sep = ";"; cell.setFormula(f(sep)); SpreadsheetApp.flush(); }
-  if (String(cell.getDisplayValue()).indexOf("#ERROR") !== 0) PROPS.setProperty("formulaSep", sep);
+// «Зараз» — звичайний текст (без формул, щоб не залежати від мови таблиці):
+// 🟢 — був пульс за останні 3 хв і вкладку не закривали; інакше ⚪.
+const ONLINE_LIVE_MS = 3 * 60 * 1000;
+const onlineMark_ = (last, bye, now) => (!(last instanceof Date) ? "" : !bye && now - last.getTime() < ONLINE_LIVE_MS ? "🟢 на сайті" : "⚪ не на сайті");
+// Кожні 5 хв (тригер): хто зник без «bye» (вимкнувся телефон, пропав інтернет) — ⚪
+function onOnlineTick() {
+  const sh = siteSheet_(SHEET_ONLINE);
+  if (!sh || sh.getLastRow() < 2) return;
+  const n = sh.getLastRow() - 1, v = sh.getRange(2, 1, n, O_BYE).getValues(), now = Date.now();
+  const marks = v.map((r) => [onlineMark_(r[O_LAST - 1], r[O_BYE - 1] === true, now)]);
+  if (marks.some((m, i) => m[0] !== v[i][O_NOW - 1])) sh.getRange(2, O_NOW, n, 1).setValues(marks);
 }
 function presence_(name, page, dev, bye) {
   const lock = LockService.getScriptLock();
@@ -1016,11 +1019,13 @@ function presence_(name, page, dev, bye) {
     let today = prev && dayKey_(prev) === dayKey_(now) ? Number(cur[O_TODAY - 1]) || 0 : 0;
     if (prev && gap <= ONLINE_GAP_MS && !(bye && cur[O_BYE - 1] === true)) today += Math.min(gap, ONLINE_STEP_MS) / 60000;
     sh.getRange(row, 1, 1, O_BYE).setValues([[
-      name, "",
+      name, onlineMark_(now, bye === true, now.getTime()),
       page || (cur ? cur[O_PAGE - 1] : ""), dev || (cur ? cur[O_DEV - 1] : ""),
       start, now, Math.round((now - start) / 60000), Math.round(today * 10) / 10, bye === true,
     ]]);
-    onlineFormula_(sh.getRange(row, O_NOW), row);
+    // і заодно оновлюємо «Зараз» в усіх (хто давно без пульсу — ⚪)
+    const n = sh.getLastRow() - 1, all = sh.getRange(2, 1, n, O_BYE).getValues(), t = now.getTime();
+    sh.getRange(2, O_NOW, n, 1).setValues(all.map((x) => [onlineMark_(x[O_LAST - 1], x[O_BYE - 1] === true, t)]));
   } finally { lock.releaseLock(); }
 }
 
