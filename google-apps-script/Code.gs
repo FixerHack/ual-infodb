@@ -1003,13 +1003,13 @@ function presence_(name, page, dev, bye) {
     const start = !prev || gap > ONLINE_GAP_MS || !(cur[O_START - 1] instanceof Date) ? now : cur[O_START - 1];
     let today = prev && dayKey_(prev) === dayKey_(now) ? Number(cur[O_TODAY - 1]) || 0 : 0;
     if (prev && gap <= ONLINE_GAP_MS && !(bye && cur[O_BYE - 1] === true)) today += Math.min(gap, ONLINE_STEP_MS) / 60000;
-    const r = row;
     sh.getRange(row, 1, 1, O_BYE).setValues([[
-      name,
-      `=IF(F${r}="";"";IF(AND(I${r}<>TRUE;NOW()-F${r}<3/1440);"🟢 на сайті";"⚪ не на сайті"))`.replace(/;/g, ","),
+      name, "",
       page || (cur ? cur[O_PAGE - 1] : ""), dev || (cur ? cur[O_DEV - 1] : ""),
       start, now, Math.round((now - start) / 60000), Math.round(today * 10) / 10, bye === true,
     ]]);
+    // setFormula завжди англійською (з «,»); setValues розбирав би формулу за мовою таблиці — і давав #ERROR!
+    sh.getRange(row, O_NOW).setFormula(`=IF(F${row}="","",IF(AND(I${row}<>TRUE,NOW()-F${row}<3/1440),"🟢 на сайті","⚪ не на сайті"))`);
   } finally { lock.releaseLock(); }
 }
 
