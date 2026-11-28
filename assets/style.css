@@ -1056,12 +1056,4 @@ select.field {
 .admin-notice .wrap span { flex: 1 1 260px; }
 .admin-notice .wrap span a { text-decoration: underline; }
 .admin-notice .btn.small { flex: none; }
-.admin-notice.important { background: color-mix(in srgb, #e5484d 14%, var(--bg, #fff)); border-bottom-color: color-mix(in srgb, #e5484d 35%, transparent); }
-
-/* «Критичне» повідомлення — вікно посеред екрану */
-.notice-modal { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: rgba(8, 10, 24, .62); backdrop-filter: blur(3px); }
-.notice-modal-box { width: min(480px, 100%); background: var(--card, var(--bg)); color: var(--ink); border: 2px solid #e5484d; border-radius: 20px; padding: 28px 24px 24px; text-align: center; box-shadow: 0 20px 60px rgba(0, 0, 0, .35); }
-.notice-modal-ico { font-size: 40px; line-height: 1; margin-bottom: 8px; }
-.notice-modal-box h2 { margin: 0 0 10px; font-size: 1.25rem; }
-.notice-modal-box p { margin: 0 0 20px; line-height: 1.5; }
-.notice-modal-box p a { text-decoration: underline; }
+.admin-notice.pinned { background: color-mix(in srgb, #f7aa3a 16%, var(--bg, #fff)); border-bottom-color: color-mix(in srgb, #f7aa3a 40%, transparent); }

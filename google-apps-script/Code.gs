@@ -35,8 +35,11 @@ const SHEET_ONLINE = "Онлайн";
 const SHEET_NOTICES = "Повідомлення";
 const NOTICE_HEADERS = ["ID", "Текст", "Кому", "Показувати з", "Показувати до", "Увімкнено", "Тип", "Прочитали"];
 const N_ID = 1, N_TEXT = 2, N_TO = 3, N_FROM = 4, N_UNTIL = 5, N_ON = 6, N_KIND = 7, N_SEEN = 8;
-const N_ALL = "Усім", N_INFO = "Звичайне", N_IMPORTANT = "Важливе", N_ONCE = "Один раз", N_CRITICAL = "Критичне";
-const N_KINDS = { [N_INFO]: "info", [N_IMPORTANT]: "important", [N_ONCE]: "once", [N_CRITICAL]: "critical" };
+const N_ALL = "Усім", N_ONCE = "Одноразове", N_PINNED = "Закріплене";
+const N_TYPES = [N_ONCE, N_PINNED];
+// Одноразове — людина закрила «Зрозуміло» і більше не бачить; закріплене — закрити не можна, лише адмін вимикає.
+// Старі назви типів («Звичайне», «Важливе», «Один раз», «Критичне») вважаємо одноразовими.
+const noticeKind_ = (t) => (String(t).trim() === N_PINNED ? "pinned" : "once");
 const ONLINE_HEADERS = ["Ім'я", "Зараз", "Сторінка", "Пристрій", "Сесія з", "Остання активність", "Сесія, хв", "Сьогодні, хв", "Вийшов"];
 const O_NAME = 1, O_NOW = 2, O_PAGE = 3, O_DEV = 4, O_START = 5, O_LAST = 6, O_SESSION = 7, O_TODAY = 8, O_BYE = 9;
 const ONLINE_GAP_MS = 5 * 60 * 1000;   // перерва довша за 5 хв — нова сесія
@@ -979,7 +982,7 @@ function myF4_(name) {
 // ============================================================================
 function setupNotices_(site) {
   let sh = site.getSheetByName(SHEET_NOTICES);
-  if (sh) { sh.getRange(2, N_KIND, 500, 1).setDataValidation(listRule_([N_INFO, N_IMPORTANT, N_ONCE, N_CRITICAL])); return sh; }
+  if (sh) { sh.getRange(2, N_KIND, 500, 1).setDataValidation(listRule_(N_TYPES)); return sh; }
   sh = site.insertSheet(SHEET_NOTICES, 1);
   bold_(sh, NOTICE_HEADERS);
   sh.setFrozenRows(1);
@@ -988,10 +991,10 @@ function setupNotices_(site) {
   sh.getRange(2, N_TEXT, 500, 1).setWrap(true).setVerticalAlignment("top");
   sh.getRange(2, N_SEEN, 500, 1).setWrap(true).setVerticalAlignment("top");
   sh.getRange(2, N_FROM, 500, 2).setNumberFormat("dd.MM.yyyy HH:mm");
-  sh.getRange(2, N_KIND, 500, 1).setDataValidation(listRule_([N_INFO, N_IMPORTANT, N_ONCE, N_CRITICAL]));
+  sh.getRange(2, N_KIND, 500, 1).setDataValidation(listRule_(N_TYPES));
   sh.getRange(1, 10).setValue("Новий рядок = нове повідомлення. Кому: «Усім» або конкретна людина. Дати можна не ставити. "
-    + "Зняти «Увімкнено» — сховати. Тип: Звичайне / Важливе — смужка під шапкою до «Зрозуміло»; Один раз — показується при наступному вході й одразу вважається прочитаним; "
-    + "Критичне — вікно посеред екрану. Хто прочитав — у «Прочитали».");
+    + "Зняти «Увімкнено» — сховати. Тип: Одноразове — людина закриває «Зрозуміло» і більше не бачить; "
+    + "Закріплене — закрити не можна, висить, доки не знімеш «Увімкнено». Хто закрив одноразове — у «Прочитали».");
   return sh;
 }
 // Новий текст — ставимо ID, «Усім», «Звичайне», «Увімкнено» і дату початку, якщо порожні
@@ -1004,7 +1007,7 @@ function fillNotices_() {
     if (!String(r[N_TEXT - 1]).trim()) return;
     if (!String(r[N_ID - 1]).trim()) { r[N_ID - 1] = newToken_(); r[N_ON - 1] = true; changed = true; }
     if (!String(r[N_TO - 1]).trim()) { r[N_TO - 1] = N_ALL; changed = true; }
-    if (!String(r[N_KIND - 1]).trim()) { r[N_KIND - 1] = N_INFO; changed = true; }
+    if (N_TYPES.indexOf(String(r[N_KIND - 1]).trim()) < 0) { r[N_KIND - 1] = noticeKind_(r[N_KIND - 1]) === "pinned" ? N_PINNED : N_ONCE; changed = true; }
     if (!(r[N_FROM - 1] instanceof Date)) { r[N_FROM - 1] = new Date(); changed = true; }
   });
   if (changed) sh.getRange(2, 1, n, N_SEEN).setValues(v);
@@ -1020,14 +1023,15 @@ function notices_() {
       .map((r) => ({ id: String(r[N_ID - 1]).trim(), text: String(r[N_TEXT - 1]).trim().slice(0, 1000), to: String(r[N_TO - 1]).trim() || N_ALL,
                      from: r[N_FROM - 1] instanceof Date ? r[N_FROM - 1].getTime() : 0,
                      until: r[N_UNTIL - 1] instanceof Date ? r[N_UNTIL - 1].getTime() : 0,
-                     kind: N_KINDS[String(r[N_KIND - 1]).trim()] || "info",
+                     kind: noticeKind_(r[N_KIND - 1]),
                      seen: String(r[N_SEEN - 1]).split(",").map((x) => x.trim()).filter(Boolean) }));
   });
 }
 function noticesFor_(name) {
   const now = Date.now();
-  return notices_().filter((n) => (n.to === N_ALL || n.to === name) && (!n.from || n.from <= now) && (!n.until || n.until > now) && n.seen.indexOf(name) < 0)
-    .map((n) => ({ id: n.id, text: n.text, kind: n.kind, important: n.kind === "important" || n.kind === "critical", personal: n.to !== N_ALL }));
+  return notices_().filter((n) => (n.to === N_ALL || n.to === name) && (!n.from || n.from <= now) && (!n.until || n.until > now)
+                                && (n.kind === "pinned" || n.seen.indexOf(name) < 0))
+    .map((n) => ({ id: n.id, text: n.text, kind: n.kind, personal: n.to !== N_ALL }));
 }
 function noticeSeen_(id, name) {
   if (!id) return;
